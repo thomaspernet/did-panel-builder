@@ -6,12 +6,15 @@ from .event_study import (
     plot_multi_outcome,
     plot_pre_post_comparison,
 )
+from .geographic import plot_location_events
 from .panel import (
     plot_coverage_summary,
     plot_observation_heatmap,
     plot_outcome_variation,
     plot_pre_post_coverage,
     plot_treatment_distribution,
+    plot_treatment_funnel,
+    plot_treatment_summary,
 )
 from .stacked import plot_stacked_cohort
 
@@ -22,8 +25,11 @@ __all__ = [
     "plot_multi_outcome",
     "plot_stacked_cohort",
     "plot_treatment_distribution",
+    "plot_treatment_summary",
+    "plot_treatment_funnel",
     "plot_pre_post_coverage",
     "plot_outcome_variation",
     "plot_coverage_summary",
     "plot_observation_heatmap",
+    "plot_location_events",
 ]

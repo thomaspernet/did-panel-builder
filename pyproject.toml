@@ -12,8 +12,9 @@ dependencies = [
 
 [project.optional-dependencies]
 viz = ["matplotlib>=3.6", "seaborn>=0.12"]
+geo = ["matplotlib>=3.6", "geopandas>=0.12"]
 io = ["pyarrow>=10.0"]
-all = ["did-panel-builder[viz,io]"]
+all = ["did-panel-builder[viz,geo,io]"]
 dev = [
     "did-panel-builder[all]",
     "pytest>=7.0",

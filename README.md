@@ -1,5 +1,9 @@
 # did-panel-builder
 
+![Tests](https://img.shields.io/badge/tests-121%20passed-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+
 Build panel datasets for difference-in-differences estimation.
 
 Three panel construction strategies, covering the main modern DiD designs:
@@ -17,6 +21,9 @@ pip install did-panel-builder
 
 # With visualization support
 pip install "did-panel-builder[viz]"
+
+# With geographic plots (geopandas)
+pip install "did-panel-builder[geo]"
 
 # With parquet export
 pip install "did-panel-builder[io]"
@@ -186,16 +193,27 @@ summary = cov.summary(df_panel)
 
 ## Visualization
 
-All visualization functions accept an optional `ax` parameter for composability.
+All visualization functions return a `matplotlib.figure.Figure`.
 
 ```python
 from did_panel_builder.visualization import (
+    # Event study
     plot_event_time,
     plot_by_treatment_status,
     plot_multi_outcome,
+    plot_pre_post_comparison,
+    # Stacked cohort
     plot_stacked_cohort,
+    # Panel diagnostics
     plot_treatment_distribution,
+    plot_treatment_summary,
+    plot_treatment_funnel,
     plot_pre_post_coverage,
+    plot_outcome_variation,
+    plot_coverage_summary,
+    plot_observation_heatmap,
+    # Geographic
+    plot_location_events,
 )
 
 # Event-time plot with CI band
@@ -211,7 +229,28 @@ plot_multi_outcome(df_panel, outcomes=["revenue", "profit", "employment"])
 plot_stacked_cohort(df_stacked, outcome="revenue")
 
 # Treatment distribution histogram
-plot_treatment_distribution(df_panel, treatment_time_col="first_event_time")
+plot_treatment_distribution(df_panel)
+
+# Treatment rate + event count over time
+plot_treatment_summary(df_panel, unit_col="firm_id", time_col="year")
+
+# Data pipeline funnel
+plot_treatment_funnel([
+    ("Raw data", 100000),
+    ("Filtered", 50000),
+    ("Final sample", 20000),
+])
+
+# Scatter map of event locations (works with any lat/lon worldwide)
+import geopandas as gpd
+boundaries = gpd.read_file("states.shp")  # optional basemap
+plot_location_events(
+    df_locations,
+    lat_col="latitude",
+    lon_col="longitude",
+    time_periods=[2008, 2012, 2016, 2020],
+    boundaries=boundaries,
+)
 ```
 
 ## Export
@@ -243,5 +282,6 @@ git clone https://github.com/thomaspernet/did-panel-builder.git
 cd did-panel-builder
 uv venv && uv pip install -e ".[dev]"
 uv run pytest
+uv run pytest --cov=did_panel_builder  # 95% coverage
 uv run ruff check src/
 ```
