@@ -152,49 +152,30 @@ class BasePanelBuilder(ABC):
     def _compute_pre_post(
         self, df: pd.DataFrame, first_event: dict
     ) -> pd.DataFrame:
-        """Add pre/post period counts based on first event timing."""
+        """Add pre/post period counts based on first event timing.
+
+        Counts actual observed periods before/after first event (not time range),
+        so unbalanced panels with gaps are handled correctly.
+        """
         c = self.config
-
-        # Vectorized: compute pre/post counts without row-wise apply
         df = df.copy()
-        df["_first_event"] = df[c.unit_col].map(first_event)
 
-        # For ever-treated: count periods before/after first event
-        has_event = df["_first_event"].notna()
+        pre_counts: dict[str, int] = {}
+        post_counts: dict[str, int] = {}
 
-        # Get min/max observed time per unit
-        unit_bounds = df.groupby(c.unit_col)[c.time_col].agg(["min", "max"]).to_dict("index")
-        df["_min_time"] = df[c.unit_col].map(lambda u: unit_bounds[u]["min"])
-        df["_max_time"] = df[c.unit_col].map(lambda u: unit_bounds[u]["max"])
+        for unit, grp in df.groupby(c.unit_col):
+            fe = first_event.get(unit)
+            if fe is None:
+                pre_counts[unit] = 0
+                post_counts[unit] = 0
+            else:
+                times = grp[c.time_col].unique()
+                pre_counts[unit] = int((times < fe).sum())
+                post_counts[unit] = int((times > fe).sum())
 
-        df["cnt_pre_periods"] = np.where(
-            has_event,
-            (df["_first_event"] - df["_min_time"]).clip(lower=0),
-            0,
-        )
-        df["cnt_post_periods"] = np.where(
-            has_event,
-            (df["_max_time"] - df["_first_event"]).clip(lower=0),
-            0,
-        )
+        df["cnt_pre_periods"] = df[c.unit_col].map(pre_counts).astype(int)
+        df["cnt_post_periods"] = df[c.unit_col].map(post_counts).astype(int)
 
-        # cnt_pre/post are firm-level, so broadcast the first row's value
-        pre_map = (
-            df[has_event]
-            .drop_duplicates(c.unit_col)
-            .set_index(c.unit_col)["cnt_pre_periods"]
-            .to_dict()
-        )
-        post_map = (
-            df[has_event]
-            .drop_duplicates(c.unit_col)
-            .set_index(c.unit_col)["cnt_post_periods"]
-            .to_dict()
-        )
-        df["cnt_pre_periods"] = df[c.unit_col].map(pre_map).fillna(0).astype(int)
-        df["cnt_post_periods"] = df[c.unit_col].map(post_map).fillna(0).astype(int)
-
-        df.drop(columns=["_first_event", "_min_time", "_max_time"], inplace=True)
         return df
 
     def _assign_treatment_type(self, df: pd.DataFrame) -> pd.DataFrame:
