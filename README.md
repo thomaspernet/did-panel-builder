@@ -53,6 +53,58 @@ df_outcomes = pd.read_csv("outcomes.csv")
 df_merged = panel.merge_outcomes(df_outcomes, outcome_cols=["gdp", "population"])
 ```
 
+## Treatment Assignment
+
+Before building panels, use `TreatmentAssigner` to classify units and prepare the sample. This computes first-event timing, pre/post period counts, treatment categories, and diagnostic flags.
+
+```python
+from did_panel_builder import TreatmentAssigner, PanelConfig, StaggeredPanel
+
+config = PanelConfig(unit_col="firm_id", time_col="year", event_col="has_shock")
+
+# Step 1: Assign treatment metadata
+assigner = TreatmentAssigner(
+    df, config=config,
+    study_start=2005, study_end=2020,
+    min_pre_periods=2, min_post_periods=1,
+)
+df_treatment = assigner.build()
+
+# Step 2: Inspect the sample
+assigner.summary()
+#   treatment_category  n_units  pct_units
+#   never_treated          150       30.0
+#   has_pre_post           300       60.0
+#   has_pre_only            25        5.0
+#   has_post_only           15        3.0
+#   has_neither             10        2.0
+
+# Step 3: Filter to estimation sample
+df_clean = assigner.filter(
+    drop_early_treated=True,
+    drop_insufficient_pre=True,
+    keep_categories=["never_treated", "has_pre_post"],
+)
+
+# Step 4: Build panel
+panel = StaggeredPanel(df_clean, config=config)
+df_panel = panel.build()
+```
+
+### Output columns
+
+| Column | Type | Description |
+|---|---|---|
+| `first_event_time` | int | First treatment time; `fill_value` for never-treated |
+| `cnt_pre_periods` | int | Unique observed periods before first event |
+| `cnt_post_periods` | int | Unique observed periods after first event (capped at `study_end`) |
+| `early_treated` | 0/1 | 1 if treated in the `study_start` period |
+| `insufficient_pre` | 0/1 | 1 if pre-periods < `min_pre_periods` |
+| `insufficient_post` | 0/1 | 1 if post-periods < `min_post_periods` |
+| `has_pre_data` | 0/1 | 1 if any pre-treatment observations |
+| `has_post_data` | 0/1 | 1 if any post-treatment observations |
+| `treatment_category` | str | `never_treated`, `has_pre_post`, `has_pre_only`, `has_post_only`, `has_neither` |
+
 ## Panel Builders
 
 ### StaggeredPanel (Sun & Abraham 2021)
