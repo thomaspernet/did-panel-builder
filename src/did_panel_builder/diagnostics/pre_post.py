@@ -11,6 +11,7 @@ Answers three questions any DiD researcher asks before estimation:
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 import numpy as np
@@ -85,10 +86,16 @@ class PrePostDiagnostics:
             (DataFrame), ``selection_gap`` (dict).
         """
         available = [o for o in outcomes if o in df.columns]
-        if not available:
-            raise ValueError(
-                f"None of the outcomes {outcomes} found in DataFrame. "
-                f"Available columns: {sorted(df.columns.tolist())}"
+        missing = [o for o in outcomes if o not in df.columns]
+        if missing:
+            if not available:
+                raise ValueError(
+                    f"None of the outcomes {outcomes} found in DataFrame. "
+                    f"Available columns: {sorted(df.columns.tolist())}"
+                )
+            warnings.warn(
+                f"Outcomes not found in DataFrame (skipped): {missing}",
+                stacklevel=2,
             )
 
         results: dict[str, Any] = {}

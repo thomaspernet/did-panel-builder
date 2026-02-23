@@ -41,6 +41,16 @@ class TestPrePostAnalyze:
         assert len(results["pre_post_means"]) == 1
         assert results["pre_post_means"].iloc[0]["outcome"] == "outcome_a"
 
+    def test_warns_on_missing_columns(self, staggered_panel, config):
+        diag = PrePostDiagnostics(config=config)
+        with pytest.warns(UserWarning, match="nonexistent_col"):
+            diag.analyze(
+                staggered_panel,
+                outcomes=["outcome_a", "nonexistent_col"],
+                treatment_col="treatment_type",
+                event_time_col="event_time",
+            )
+
 
 class TestPrePostMeans:
     def test_columns(self, staggered_panel, config):
