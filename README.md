@@ -1,6 +1,6 @@
 # did-panel-builder
 
-![Tests](https://img.shields.io/badge/tests-121%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-151%20passed-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 
@@ -53,7 +53,10 @@ panel = StaggeredPanel(df, config=config)
 df_panel = panel.build()
 
 # Filter to estimation sample
-df_clean = panel.filter_sample(min_pre_periods=2, min_post_periods=1)
+df_clean = panel.filter_sample(
+    min_event_time=-3, max_event_time=5,
+    min_pre_periods=2, min_post_periods=1,
+)
 
 # Merge outcomes from another DataFrame
 df_outcomes = pd.read_csv("outcomes.csv")
@@ -128,10 +131,13 @@ df_stag = panel.build()
 # Output columns: first_event_time, event_time, treatment_type,
 #   treatment_status, cnt_pre_periods, cnt_post_periods
 
-# Filter to usable sample
+# Filter to usable sample (mirrors R prepare_sunab pattern)
 df_clean = panel.filter_sample(
     keep_treatment_types=["treated", "never_treated"],
-    min_pre_periods=2,
+    min_event_time=-3,       # trim event window
+    max_event_time=5,
+    min_pre_periods=2,       # minimum coverage
+    min_post_periods=1,
 )
 
 # Check within-unit variation (needed for FE logit/Poisson)
@@ -178,7 +184,11 @@ panel.cohort_summary()
 ## Diagnostics
 
 ```python
-from did_panel_builder.diagnostics import VariationAnalyzer, CoverageAnalyzer
+from did_panel_builder.diagnostics import (
+    CoverageAnalyzer,
+    PrePostDiagnostics,
+    VariationAnalyzer,
+)
 
 # Within-unit outcome variation (needed for FE estimation)
 var = VariationAnalyzer(config=config)
@@ -189,6 +199,19 @@ usable = var.usable_sample(df_panel, outcome="revenue")
 cov = CoverageAnalyzer(config=config)
 coverage = cov.compute(df_panel)
 summary = cov.summary(df_panel)
+
+# Pre/post treatment diagnostics (print, DataFrame, plot)
+diag = PrePostDiagnostics(config=config)
+results = diag.analyze(
+    df_panel,
+    outcomes=["revenue", "profit", "has_disclosure"],
+    treatment_col="treatment_type",
+    event_time_col="event_time",
+    selection_outcome="has_disclosure",  # for Lee bounds gap
+)
+diag.print_summary(results)       # formatted text
+df_means = results["pre_post_means"]  # DataFrame
+fig = diag.plot_summary(results)  # 1x3 matplotlib figure
 ```
 
 ## Visualization
