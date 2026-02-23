@@ -77,6 +77,15 @@ def all_treated_same_time() -> pd.DataFrame:
 
 
 @pytest.fixture
+def staggered_panel(simple_panel, config) -> pd.DataFrame:
+    """Built staggered panel with treatment_type and event_time columns."""
+    from did_panel_builder import StaggeredPanel
+
+    panel = StaggeredPanel(simple_panel, config=config)
+    return panel.build()
+
+
+@pytest.fixture
 def outcomes_df() -> pd.DataFrame:
     """Separate outcome DataFrame for merge testing."""
     rng = np.random.default_rng(99)
