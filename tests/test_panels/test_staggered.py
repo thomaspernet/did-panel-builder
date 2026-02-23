@@ -124,6 +124,59 @@ class TestStaggeredFilterSample:
         filtered = panel.filter_sample()  # No df argument
         assert len(filtered) > 0
 
+    def test_min_event_time_trims_early_rows(self, simple_panel, config):
+        panel = StaggeredPanel(simple_panel, config=config)
+        df = panel.build()
+        filtered = panel.filter_sample(df, min_event_time=-3)
+
+        treated_rows = filtered[filtered["event_time"].notna()]
+        assert (treated_rows["event_time"] >= -3).all()
+
+    def test_max_event_time_trims_late_rows(self, simple_panel, config):
+        panel = StaggeredPanel(simple_panel, config=config)
+        df = panel.build()
+        filtered = panel.filter_sample(df, max_event_time=5)
+
+        treated_rows = filtered[filtered["event_time"].notna()]
+        assert (treated_rows["event_time"] <= 5).all()
+
+    def test_event_window_preserves_never_treated(self, simple_panel, config):
+        panel = StaggeredPanel(simple_panel, config=config)
+        df = panel.build()
+        n_never_before = len(df[df["treatment_type"] == "never_treated"])
+
+        filtered = panel.filter_sample(df, min_event_time=-2, max_event_time=2)
+
+        n_never_after = len(filtered[filtered["treatment_type"] == "never_treated"])
+        assert n_never_after == n_never_before
+
+    def test_event_window_reduces_rows(self, simple_panel, config):
+        panel = StaggeredPanel(simple_panel, config=config)
+        df = panel.build()
+        filtered = panel.filter_sample(df, min_event_time=-1, max_event_time=1)
+
+        assert len(filtered) < len(df)
+
+    def test_combined_filters(self, simple_panel, config):
+        """Event window + min coverage + treatment types — mirrors R prepare_sunab."""
+        panel = StaggeredPanel(simple_panel, config=config)
+        df = panel.build()
+        filtered = panel.filter_sample(
+            df,
+            keep_treatment_types=["treated", "never_treated"],
+            min_event_time=-3,
+            max_event_time=5,
+            min_pre_periods=1,
+            min_post_periods=2,
+        )
+
+        # Only treated and never_treated
+        assert set(filtered["treatment_type"].unique()) <= {"treated", "never_treated"}
+        # Event window respected
+        treated_rows = filtered[filtered["event_time"].notna()]
+        assert (treated_rows["event_time"] >= -3).all()
+        assert (treated_rows["event_time"] <= 5).all()
+
 
 class TestStaggeredVariationFlag:
     def test_adds_flag_column(self, simple_panel, config):

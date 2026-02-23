@@ -99,6 +99,8 @@ class StaggeredPanel(BasePanelBuilder):
         keep_treatment_types: list[str] | None = None,
         min_pre_periods: int = 0,
         min_post_periods: int = 0,
+        min_event_time: int | None = None,
+        max_event_time: int | None = None,
     ) -> pd.DataFrame:
         """Filter panel to specific treatment types and minimum coverage.
 
@@ -112,6 +114,12 @@ class StaggeredPanel(BasePanelBuilder):
             Minimum pre-treatment periods required for ever-treated units.
         min_post_periods : int
             Minimum post-treatment periods required for ever-treated units.
+        min_event_time : int, optional
+            Drop observations with ``event_time < min_event_time``.
+            Never-treated rows (NaN event_time) are always kept.
+        max_event_time : int, optional
+            Drop observations with ``event_time > max_event_time``.
+            Never-treated rows (NaN event_time) are always kept.
 
         Returns
         -------
@@ -125,6 +133,16 @@ class StaggeredPanel(BasePanelBuilder):
             keep_treatment_types = ["treated", "never_treated"]
 
         filtered = df[df["treatment_type"].isin(keep_treatment_types)].copy()
+
+        # Trim event window (keep NaN rows = never-treated)
+        if min_event_time is not None:
+            filtered = filtered[
+                filtered["event_time"].isna() | (filtered["event_time"] >= min_event_time)
+            ]
+        if max_event_time is not None:
+            filtered = filtered[
+                filtered["event_time"].isna() | (filtered["event_time"] <= max_event_time)
+            ]
 
         # Apply min coverage filters ONLY to ever-treated (not never-treated)
         if min_pre_periods > 0 or min_post_periods > 0:
