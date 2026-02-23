@@ -54,12 +54,20 @@ class MultiEventPanel(BasePanelBuilder):
             - ``event_time``: periods relative to first event (NaN for never-treated)
             - ``treatment_timing``: first_event_time only at the event period, else fill_value
               (used by dCDH estimator)
+            - ``D``: binary absorbing treatment (1 if post-treatment, 0 otherwise)
             - ``treatment_type``: unit-level classification
             - ``cnt_pre_periods`` / ``cnt_post_periods``: pre/post period counts
             - ``years_in_panel`` / ``nb_years_in_panel``: panel coverage
         """
         c = self.config
         df = self._df.copy()
+
+        # Deduplicate by (unit, time) — keep first occurrence
+        n_before = len(df)
+        df = df.drop_duplicates(subset=[c.unit_col, c.time_col], keep="first")
+        n_dropped = n_before - len(df)
+        if n_dropped > 0:
+            logger.info("Dropped %s duplicate (unit, time) rows", f"{n_dropped:,}")
 
         # Panel coverage
         df = self._compute_years_in_panel(df)
@@ -97,6 +105,14 @@ class MultiEventPanel(BasePanelBuilder):
             (df["first_event_time"] > 0) & (df[c.time_col] == df["first_event_time"]),
             df["first_event_time"],
             c.fill_value,
+        )
+
+        # Binary absorbing treatment: D = 1 when unit is post-treatment
+        df["D"] = np.where(
+            (df["first_event_time"] != c.fill_value)
+            & (df[c.time_col] >= df["first_event_time"]),
+            1,
+            0,
         )
 
         # Treatment type classification
