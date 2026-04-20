@@ -90,6 +90,84 @@ class TestPrePostMeans:
         assert row["post_obs"] > 0
 
 
+class TestEventWindow:
+    """Restricting pre/post to an event window matches the event study sample.
+
+    Regression for issue #1: PrePostDiagnostics was pooling every treated-unit
+    row, while event study plots filter to ``event_window``. On unbalanced
+    panels with a trending outcome, the two views could disagree on the sign
+    of the post-pre diff because distant event times outside the plot window
+    dominated the PrePost means.
+    """
+
+    @staticmethod
+    def _windowed_panel():
+        """Treated unit 1 event in 2010, with outcome rising near the event
+        and falling far post. Never-treated unit 2 as control."""
+        from did_panel_builder import PanelConfig, StaggeredPanel
+
+        rows = []
+        for year in range(2000, 2021):
+            if year < 2010:
+                outcome = 0.0
+            elif year <= 2012:
+                outcome = 5.0
+            else:
+                outcome = -5.0
+            rows.append({
+                "unit_id": "1",
+                "year": year,
+                "has_event": year == 2010,
+                "outcome_a": outcome,
+            })
+            rows.append({
+                "unit_id": "2",
+                "year": year,
+                "has_event": False,
+                "outcome_a": 0.0,
+            })
+
+        cfg = PanelConfig(unit_col="unit_id", time_col="year", event_col="has_event")
+        panel = StaggeredPanel(pd.DataFrame(rows), config=cfg).build()
+        return panel, cfg
+
+    def test_full_panel_pools_distant_event_times(self):
+        """Without event_window, distant negative post values flip the sign."""
+        panel, cfg = self._windowed_panel()
+        diag = PrePostDiagnostics(config=cfg)
+        results = diag.analyze(panel, outcomes=["outcome_a"])
+        row = results["pre_post_means"].iloc[0]
+        assert row["diff"] < 0, (
+            "Expected negative pooled diff because post years 2013-2020 "
+            f"dominate, got diff={row['diff']}"
+        )
+
+    def test_event_window_matches_local_effect(self):
+        """With event_window=(-2, 2), the post mean reflects the near-event rise."""
+        panel, cfg = self._windowed_panel()
+        diag = PrePostDiagnostics(config=cfg)
+        results = diag.analyze(
+            panel, outcomes=["outcome_a"], event_window=(-2, 2),
+        )
+        row = results["pre_post_means"].iloc[0]
+        assert row["pre_mean"] == pytest.approx(0.0)
+        assert row["post_mean"] == pytest.approx(5.0)
+        assert row["diff"] == pytest.approx(5.0)
+        assert row["pre_obs"] == 2
+        assert row["post_obs"] == 3
+
+    def test_event_window_filters_selection_gap(self):
+        """Selection gap restricts post_treated to the event window."""
+        panel, cfg = self._windowed_panel()
+        diag = PrePostDiagnostics(config=cfg)
+        results = diag.analyze(
+            panel, outcomes=["outcome_a"], event_window=(-2, 2),
+        )
+        gap = results["selection_gap"]
+        assert gap["n_treated"] == 3
+        assert gap["rate_treated"] == pytest.approx(5.0)
+
+
 class TestWithinVariation:
     def test_columns(self, staggered_panel, config):
         diag = PrePostDiagnostics(config=config)
