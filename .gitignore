@@ -8,3 +8,7 @@ build/
 .ruff_cache/
 *.egg
 .DS_Store
+
+# Claude Code local files
+CLAUDE.local.md
+.claude/
