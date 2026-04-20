@@ -55,6 +55,7 @@ class PrePostDiagnostics:
         control_value: str = "never_treated",
         threshold: int = 0,
         selection_outcome: str | None = None,
+        event_window: tuple[int, int] | None = None,
     ) -> dict[str, Any]:
         """Run all three diagnostics and return results.
 
@@ -78,6 +79,15 @@ class PrePostDiagnostics:
         selection_outcome : str, optional
             Binary outcome for selection gap analysis. If None, uses the
             first outcome in ``outcomes``.
+        event_window : tuple[int, int], optional
+            ``(min_event_time, max_event_time)`` inclusive. When set, the
+            pre/post means and selection gap are restricted to treated rows
+            with ``event_time`` in this window. Pass the same window as the
+            event study plot to make the two views comparable on the same
+            sample — otherwise the pre/post bar chart pools observations
+            outside the plot's window and can disagree in sign. Control
+            rows in the selection gap are unaffected (they have no
+            ``event_time``). Default: no restriction.
 
         Returns
         -------
@@ -107,6 +117,7 @@ class PrePostDiagnostics:
             event_time_col=event_time_col,
             treated_value=treated_value,
             threshold=threshold,
+            event_window=event_window,
         )
 
         results["within_variation"] = self._compute_within_variation(
@@ -125,6 +136,7 @@ class PrePostDiagnostics:
             treated_value=treated_value,
             control_value=control_value,
             threshold=threshold,
+            event_window=event_window,
         )
 
         return results
@@ -141,10 +153,16 @@ class PrePostDiagnostics:
         event_time_col: str,
         treated_value: str,
         threshold: int,
+        event_window: tuple[int, int] | None = None,
     ) -> pd.DataFrame:
         """Compare outcome means before and after treatment for treated units."""
         c = self.config
         treated = df[df[treatment_col] == treated_value]
+        if event_window is not None:
+            lo, hi = event_window
+            treated = treated[
+                (treated[event_time_col] >= lo) & (treated[event_time_col] <= hi)
+            ]
         pre = treated[treated[event_time_col] < threshold]
         post = treated[treated[event_time_col] >= threshold]
 
@@ -209,6 +227,7 @@ class PrePostDiagnostics:
         treated_value: str,
         control_value: str,
         threshold: int,
+        event_window: tuple[int, int] | None = None,
     ) -> dict[str, Any]:
         """Compute excess outcome rate between treated (post) and control.
 
@@ -220,6 +239,12 @@ class PrePostDiagnostics:
             (df[treatment_col] == treated_value)
             & (df[event_time_col] >= threshold)
         ]
+        if event_window is not None:
+            lo, hi = event_window
+            post_treated = post_treated[
+                (post_treated[event_time_col] >= lo)
+                & (post_treated[event_time_col] <= hi)
+            ]
         control = df[df[treatment_col] == control_value]
 
         rate_treated = post_treated[outcome].mean() if len(post_treated) > 0 else np.nan
