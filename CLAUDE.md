@@ -16,7 +16,7 @@ Python 3.10+ library for building panel datasets for difference-in-differences e
 
 | Rule file | Loads when | Points to |
 |---|---|---|
-| `critical.md` | Every conversation | `documentation/general/clean-code.md`, checklists |
+| `critical.md` | Every conversation | `documentation/general/general/clean-code.md`, checklists |
 | `backend.md` | Reading `**/*.py` | `documentation/general/python/*` |
 
 ## Key Directories
@@ -48,12 +48,13 @@ uv run ruff format .
 
 | When you need... | Read |
 |---|---|
-| Clean code principles | `documentation/general/clean-code.md` |
-| General checklist | `documentation/general/checklist.md` |
-| Documentation principles | `documentation/general/documentation.md` |
-| Rules checklist | `documentation/general/rules-checklist.md` |
-| Propagation scan | `documentation/general/propagation-scan.md` |
-| Issue to rule | `documentation/general/issue-to-rule.md` |
+| Clean code principles | `documentation/general/general/clean-code.md` |
+| General checklist | `documentation/general/general/checklist.md` |
+| Documentation principles | `documentation/general/general/documentation.md` |
+| Rules checklist | `documentation/general/general/rules-checklist.md` |
+| Propagation scan | `documentation/general/general/propagation-scan.md` |
+| Issue to rule | `documentation/general/general/issue-to-rule.md` |
+| GitHub writing rules (issues/PRs/comments) | `documentation/general/general/github-writing.md` |
 | Python patterns | `documentation/general/python/patterns.md` |
 | Python conventions | `documentation/general/python/conventions.md` |
 | Python typing | `documentation/general/python/typing.md` |
