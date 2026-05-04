@@ -1,0 +1,164 @@
+---
+description: "Run the completion checklists against the current branch changes. Optionally pass an issue number to scope the review."
+---
+
+Quality gate. Reviews code against the repo's checklists, posts a report to the GitHub issue, and returns pass/fail. This skill is a gate — if it fails, do NOT proceed to `/submit-pr`.
+
+GitHub writing rules: `docs:general/github-writing`.
+
+## Parse arguments
+
+- `$ARGUMENTS` = `""` → review all changes on the current branch, no issue comment, RUN_ID=(none), BASE_BRANCH=(none)
+- `$ARGUMENTS` = `"42"` → scope-check against issue #42 and post report as issue comment
+- `$ARGUMENTS` = `"42 --run 7"` → same, with RUN_ID=7
+- `$ARGUMENTS` = `"42 --run 7 --base-branch feat/364-something"` → same, with BASE_BRANCH=feat/364-something
+
+If BASE_BRANCH is provided, use it instead of the repo's dev branch for the diff base in step 3.
+
+## Detect repo
+
+Determine the target repository from the current working directory:
+
+```bash
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+```
+
+Pass `--repo "$REPO"` to every `devwatch` command to ensure the correct repo is targeted.
+
+## 1. Validate branch
+
+If an issue number was provided, verify the current branch belongs to that issue **before doing anything else**:
+
+```bash
+git branch --show-current
+```
+
+If RUN_ID is present, skip branch-name validation — the dashboard already resolved the correct branch for this workflow. Just verify you are on a feature branch (not `main`, `master`, etc.).
+
+If RUN_ID is NOT present, the branch name must start with `fix/<ISSUE>-`, `feat/<ISSUE>-`, `refactor/<ISSUE>-`, `chore/<ISSUE>-`, `docs/<ISSUE>-`, or `ci-fix/<ISSUE>-`. If the branch does not match, **stop immediately** — do not gather the diff, do not run checklists, do not post any comment. Tell the user:
+
+> "Current branch `<branch>` does not belong to issue #<ISSUE>. Check out the correct branch first."
+
+## 2. Understand the scope
+
+If an issue number was provided:
+```bash
+gh issue view <ISSUE> --repo "$REPO" --json title,body,labels
+```
+Note the issue's purpose — you will verify that changes stay within this scope.
+
+Check prior quality check results to see if this is a re-check (run `devwatch issue-history --help` for all options):
+```bash
+devwatch --repo "$REPO" issue-history <ISSUE> --phase quality
+```
+If prior quality checks exist, note what failed before — verify those items are now fixed.
+
+## 3. Gather the diff
+
+```bash
+# What changed on this branch vs the base branch.
+# Resolve the repo's dev branch from config.yaml, or use BASE_BRANCH if provided.
+BASE="${BASE_BRANCH:-$(devwatch --repo "$REPO" branches dev)}"
+git diff "origin/${BASE}...HEAD" --stat
+git diff "origin/${BASE}...HEAD"
+
+# Any uncommitted changes
+git diff --stat
+git diff
+```
+
+Identify which languages are involved from file extensions:
+- `*.py` → Python
+- `*.ts` or `*.tsx` → TypeScript
+- Both → run both checklists
+
+## 4. Run the checklists
+
+Read this repo's CLAUDE.md for the checklist paths. Then read and check every item against the diff:
+
+1. General checklist (scope, quality, decoupling, cleanup, tests)
+2. If Python files changed: Python-specific checklist
+3. If TypeScript files changed: TypeScript-specific checklist
+
+For each item in each checklist, verify it against the actual diff. Do not skip items.
+
+## 5. Determine status
+
+- **PASS**: every checklist item passes
+- **FAIL**: one or more items fail
+
+## 6. Build the report
+
+Build a markdown report following this structure:
+
+```
+## Code Quality Check — PASS / FAIL
+
+**Issue**: #<N> — <title> (or "No issue specified")
+**Branch**: <branch-name>
+**Files changed**: <count>
+**Languages**: Python / TypeScript / Both
+
+### General Checklist
+- [x] <item description>
+- [ ] FAIL: <what's wrong, file, line>
+
+### Python / TypeScript Checklist
+- [x] <item description>
+- [ ] FAIL: <what's wrong, file, line>
+
+### Result
+X/Y checks passed. Z issues found.
+```
+
+For each failure, include the specific file/line, what's wrong, and the path to the violated rule.
+
+## 7. Post the report and trace
+
+1. Read `docs:general/github-writing` — banned tokens, no personal data, per-artifact skeletons. Apply to every title, body, and comment below.
+
+If an issue number was provided, use the CLI to post the report and record the trace:
+
+```bash
+# When RUN_ID is available, --run-id carries the context (issue is derived from the run)
+devwatch --repo "$REPO" check-quality \
+  --status pass|fail \
+  --report "<the full markdown report>" \
+  --run-id <RUN_ID>
+
+# When RUN_ID is NOT available, pass --issue explicitly
+devwatch --repo "$REPO" check-quality \
+  --issue <ISSUE> \
+  --status pass|fail \
+  --report "<the full markdown report>"
+```
+
+The CLI handles everything: posts the report as a GitHub issue comment, records the quality check in the database, and exits with code 1 on failure.
+
+If no issue number was provided, just print the report to the terminal.
+
+## 8. Workflow integration
+
+If an issue number was provided, check if this issue belongs to a workflow and mark the quality action:
+
+```bash
+WORKFLOW_JSON=$(devwatch --repo "$REPO" workflow-get --issue <ISSUE>)
+```
+
+If the issue belongs to a workflow and the quality check **PASSED**, mark the quality action as done:
+```bash
+# Extract WORKFLOW_ID and STEP_ID from WORKFLOW_JSON (find the step matching this issue number)
+devwatch --repo "$REPO" workflow-update-action --workflow-id <WORKFLOW_ID> --step-id <STEP_ID> --action quality --status done
+```
+
+If the quality check **FAILED**, do not update the workflow step.
+
+## 9. Gate
+
+**If PASS**: tell the user "Quality check passed. Ready for `/submit-pr`."
+
+**If FAIL**: tell the user "Quality check failed. Fix the issues listed above, then run `/check-code-quality <N>` again. Do NOT proceed to `/submit-pr` until all checks pass."
+
+## Boundary
+
+This skill reviews and reports. It does NOT fix issues, commit, push, or create PRs. It is a gate — the agent must not proceed to `/submit-pr` if the check fails.

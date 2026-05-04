@@ -13,6 +13,5 @@ htmlcov/
 
 # Claude Code local files
 CLAUDE.local.md
-.claude/
+.claude/*
 !.claude/skills/
-!.claude/skills/**
