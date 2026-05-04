@@ -116,11 +116,9 @@ Decision matrix based on the response:
    - If the issue is standalone (no `child-of`), proceed to the **Standalone branch** block below.
 
 2. **Workflow returned** — parse these fields:
-   - `WORKFLOW_ID` — for the wrap-up call.
    - `WORKFLOW_STRATEGY = workflow.strategy` — one of `"standalone"` or `"epic_integration"`. This decides which ref the child branch is cut off, so read it before either of the two refs below.
    - `WORKFLOW_BRANCH = workflow.canonical_branch` — the canonical implementation branch (for `epic_integration`, this is the **epic integration branch** `epic/<root>-<slug>` derived from contract fields; for `standalone` it falls through to `current_branch`). Do **not** read `workflow.current_branch` directly — it is overwritten by every child's `agent-update --branch`, so under `epic_integration` it returns whichever sibling ran last (#1611).
    - `WORKFLOW_BASE = workflow.base_branch` — the workflow's *parent* branch (typically `dev` / `local-dev-next`). For `standalone` workflows this is the ref children cut off; for `epic_integration` workflows it is the parent the epic was cut from (kept for drift-pull / merge-target context) and is **not** the right ref for children.
-   - From `workflow.steps`, find the entry with `issue_number == <ISSUE>` and store `STEP_ID` (the per-step record used by `workflow-update-action`).
 
 ## Branch
 
@@ -202,11 +200,6 @@ devwatch --repo "$REPO" agent-update \
 devwatch --repo "$REPO" agent-comment \
   --issue <ISSUE> \
   --body "## Feature Complete\n\n**Summary**: <what you built and why>\n**Branch**: <branch-name>\n**Files**: <changed files>\n\nReady for review."
-```
-
-5. If this issue belongs to a workflow (WORKFLOW_ID and STEP_ID were set earlier), mark the implement action as done:
-```bash
-devwatch --repo "$REPO" workflow-update-action --workflow-id <WORKFLOW_ID> --step-id <STEP_ID> --action implement --status done
 ```
 
 ## Boundary

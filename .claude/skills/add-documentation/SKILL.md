@@ -158,20 +158,6 @@ devwatch --repo "$REPO" agent-comment \
   --body "## Docs Updated\n\n**Summary**: <which docs were updated and why>\n**Files**: <changed files>\n\nDocs are up to date for #<ISSUE>."
 ```
 
-## Workflow integration
-
-After docs are updated, check if this issue belongs to a workflow and mark the docs action:
-
-```bash
-WORKFLOW_JSON=$(devwatch --repo "$REPO" workflow-get --issue <ISSUE>)
-```
-
-If the issue belongs to a workflow, mark the docs action as done:
-```bash
-# Extract WORKFLOW_ID and STEP_ID from WORKFLOW_JSON (find the step matching this issue number)
-devwatch --repo "$REPO" workflow-update-action --workflow-id <WORKFLOW_ID> --step-id <STEP_ID> --action docs --status done
-```
-
 ## Boundary
 
 This command updates docs only. It does not modify application code.

@@ -14,16 +14,17 @@ The base branch is supplied by the caller. Do not ask the user for it.
 `$ARGUMENTS` shape:
 
 ```
-<head> --into <base> [--pr <num>] [--repo <owner/name>] [--issue <num>] [--run <id>] [--delete-source]
+<head> --into <base> [--pr <num>] [--repo <owner/name>] [--issue <num>] [--run <id>] [--delete-source] [--close-issue]
 ```
 
 Examples:
 
 - `feat/901-foo --into feat/900-epic --repo o/r --issue 901 --run 5` -> local merge, child #901 into the epic branch.
+- `feat/901-foo --into epic/900-foo --repo o/r --issue 901 --close-issue --run 5` -> local merge, then close issue #901 with a merge-SHA comment (the EPIC_INTEGRATION child path; the next chained `DELETE_BRANCH` action otherwise refuses on the open issue, see #1638).
 - `feat/900-epic --into local-dev-next --pr 123 --repo o/r --run 7` -> close PR #123 with `gh pr merge`.
 - `fix/42-bug --into local-dev-next --repo o/r --delete-source` -> local merge, then delete `fix/42-bug` on origin and locally.
 
-Extract `HEAD`, `BASE`, optional `PR_NUMBER`, `REPO`, `ISSUE`, `RUN_ID`. Set `DELETE_SOURCE=1` when `--delete-source` is present, otherwise leave it unset.
+Extract `HEAD`, `BASE`, optional `PR_NUMBER`, `REPO`, `ISSUE`, `RUN_ID`. Set `DELETE_SOURCE=1` when `--delete-source` is present, otherwise leave it unset. Set `CLOSE_ISSUE=1` when `--close-issue` is present, otherwise leave it unset.
 
 ## Detect repo
 
@@ -134,6 +135,18 @@ When `DELETE_SOURCE=1`, clean up the source branch on origin and locally. This i
 if [ "$DELETE_SOURCE" = "1" ]; then
   git push origin --delete "$HEAD" || echo "warn: failed to delete origin/$HEAD (already gone or protected)"
   git branch -D "$HEAD" 2>/dev/null || true
+fi
+```
+
+When `CLOSE_ISSUE=1` and `ISSUE` is set, close the child issue with a merge-SHA comment. This is the `EPIC_INTEGRATION` child contract (#1638): the dispatcher's next chained `DELETE_BRANCH` action refuses on an open issue with no merged PR, so the merge step itself owns the close. `BASE` here is the epic integration branch (`epic/<N>-<slug>`), so the close comment names it explicitly. Skip the close on `ALREADY_MERGED` (no new SHA — and a re-run shouldn't reopen-then-reclose):
+
+```bash
+if [ "$CLOSE_ISSUE" = "1" ] && [ -n "$ISSUE" ]; then
+  MERGE_SHA="$(git rev-parse HEAD)"
+  SHORT_SHA="${MERGE_SHA:0:8}"
+  gh issue close "$ISSUE" --repo "$REPO" \
+    --comment "Closed: merged into \`$BASE\` (merge \`$SHORT_SHA\`)." \
+    || echo "warn: gh issue close failed for #$ISSUE — resolve manually"
 fi
 ```
 

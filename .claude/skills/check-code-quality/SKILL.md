@@ -137,23 +137,7 @@ The CLI handles everything: posts the report as a GitHub issue comment, records 
 
 If no issue number was provided, just print the report to the terminal.
 
-## 8. Workflow integration
-
-If an issue number was provided, check if this issue belongs to a workflow and mark the quality action:
-
-```bash
-WORKFLOW_JSON=$(devwatch --repo "$REPO" workflow-get --issue <ISSUE>)
-```
-
-If the issue belongs to a workflow and the quality check **PASSED**, mark the quality action as done:
-```bash
-# Extract WORKFLOW_ID and STEP_ID from WORKFLOW_JSON (find the step matching this issue number)
-devwatch --repo "$REPO" workflow-update-action --workflow-id <WORKFLOW_ID> --step-id <STEP_ID> --action quality --status done
-```
-
-If the quality check **FAILED**, do not update the workflow step.
-
-## 9. Gate
+## 8. Gate
 
 **If PASS**: tell the user "Quality check passed. Ready for `/submit-pr`."
 
