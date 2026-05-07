@@ -4,7 +4,13 @@ description: "Create a GitHub issue for a bug report."
 
 Create a GitHub issue for a bug. Record it in devwatch. Stop.
 
-GitHub writing rules: `docs:general/github-writing`.
+## Mandatory reads — do this first
+
+Run:
+
+    devwatch --repo "$REPO" doc-read --skill new-bug --display
+
+The output contains every doc you must read; treat it as if you opened each file directly. Do not proceed with the skill body until done.
 
 ## Parse arguments
 
@@ -79,7 +85,7 @@ Write a `## Failure` block at the top of the issue body with the truncated error
 
 ## Execution
 
-1. Read `docs:general/github-writing` — banned tokens, no personal data, per-artifact skeletons. Apply to every title, body, and comment below.
+1. Apply the GitHub-writing rules from the mandatory-reads block (banned tokens, no personal data, per-artifact skeletons) to every title, body, and comment below.
 
 2. When `LINK_TO` is set, append it to `PARENTS` so the rendered body carries `child-of: #<LINK_TO>` (the CLI does the rendering — the skill just passes the parent ref through).
 

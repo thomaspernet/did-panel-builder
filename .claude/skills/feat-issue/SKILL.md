@@ -4,7 +4,13 @@ description: "Read GitHub issue #$ARGUMENTS, create a branch, and implement the 
 
 Implement a new feature. Read the issue, plan, implement, test, commit, push.
 
-GitHub writing rules: `docs:general/github-writing`.
+## Mandatory reads — do this first
+
+Run:
+
+    devwatch --repo "$REPO" doc-read --skill feat-issue --display
+
+The output contains every doc you must read; treat it as if you opened each file directly. Do not proceed with the skill body until done.
 
 Read this repo's CLAUDE.md for architecture and rules.
 
@@ -29,8 +35,7 @@ Pass `--repo "$REPO"` to every `devwatch` command to ensure the correct repo is 
 
 ## Context loading
 
-- Read this repo's CLAUDE.md for architecture and rules.
-- Read the repo's coding principles docs if they exist (check CLAUDE.md for paths).
+The mandatory reads (above) loaded every coding-principle doc this skill needs. Read this repo's CLAUDE.md for architecture and rules.
 
 ## Lineage pre-read
 
@@ -183,7 +188,7 @@ git commit -m "feat(scope): <description> (closes #<ISSUE>)"
 git push -u origin <your-branch-name>
 ```
 
-2. Read `docs:general/github-writing` — banned tokens, no personal data, per-artifact skeletons. Apply to every title, body, and comment below.
+2. Apply the GitHub-writing rules from the mandatory-reads block (banned tokens, no personal data, per-artifact skeletons) to every title, body, and comment below.
 
 3. Record completion (use `--run-id` if available, fall back to `--issue`):
 ```bash

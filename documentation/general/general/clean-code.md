@@ -1,3 +1,9 @@
+---
+mandatory_for:
+  universal: true
+  rules: [critical]
+---
+
 # Clean Code
 
 The principles that guide every decision. Language-agnostic, framework-agnostic. Read once, apply everywhere.

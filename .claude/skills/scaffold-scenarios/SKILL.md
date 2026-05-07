@@ -17,6 +17,14 @@ issue bodies — bind-on-sync rewrites
 once the real test exists. To add or remove draft lines on the issue
 itself, use `/edit-acceptance-scenarios`.
 
+## Mandatory reads — do this first
+
+Run:
+
+    devwatch --repo "$REPO" doc-read --skill scaffold-scenarios --display
+
+The output contains every doc you must read; treat it as if you opened each file directly. Do not proceed with the skill body until done. The mandatory-reads include the authoritative `acceptance-scenarios` doc — the contract for the `Links:` section, the `<suite>::<file>::<title>` coordinate, the title-stability invariant, and the draft lifecycle this skill is one step of.
+
 ## Parse arguments
 
 ```bash

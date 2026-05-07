@@ -1,3 +1,8 @@
+---
+mandatory_for:
+  universal: true
+---
+
 # GitHub Writing
 
 Rules for anything an agent writes into GitHub — issue titles, issue bodies, PR titles, PR bodies, and comments. Applies to both human-triggered and autonomous runs.

@@ -1,3 +1,9 @@
+---
+mandatory_for:
+  skills: [fix-issue, feat-issue]
+  rules: [backend]
+---
+
 # Python Coding Conventions
 
 General-purpose conventions for Python projects. Use as a reference while writing code.

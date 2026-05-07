@@ -1,3 +1,8 @@
+---
+mandatory_for:
+  skills: [propagation-scan]
+---
+
 # Propagation Scan
 
 After you land a change, ask: *is this fix or helper useful anywhere else?* Propagation scanning is the reflex that answers that question systematically — without violating scope hygiene.

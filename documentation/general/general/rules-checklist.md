@@ -1,3 +1,8 @@
+---
+mandatory_for:
+  skills: [issue-to-rule]
+---
+
 # Rules Checklist
 
 Run through this checklist before adding or updating a rule. Every item is a yes/no question. Used by the `/issue-to-rule` skill as a mechanical verifier gate — if any item fails, the rule does not ship.
@@ -19,7 +24,7 @@ For rule-authoring principles, read [Writing rules](vibe-coding/rules). For the 
   - `general/` (or `_shared_docs/general/`) — declarative, portable, applies to any project
   - `.claude/rules/critical.md` (project-level) — always-loaded, project-specific guardrails
   - `.claude/rules/<domain>.md` — scope-loaded, applies when touching `<domain>` files
-- [ ] Every `docs:` reference in the rule resolves to an existing file, or to a path the same change commits to create.
+- [ ] Every doc path referenced in the rule exists, or is a path the same change commits to create. If the rule adds a new doc under `documentation/`, its `mandatory_for:` frontmatter validates with `devwatch doc-validate`.
 - [ ] If the rule adds a new artifact (doc, CLI command, endpoint), the corresponding doc/checklist is listed in the mutation set.
 
 ## Consistency

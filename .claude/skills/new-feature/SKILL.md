@@ -4,7 +4,13 @@ description: "Create a GitHub issue for a feature request."
 
 Create a GitHub issue for a feature. Record it in devwatch. Stop.
 
-GitHub writing rules: `docs:general/github-writing`.
+## Mandatory reads — do this first
+
+Run:
+
+    devwatch --repo "$REPO" doc-read --skill new-feature --display
+
+The output contains every doc you must read; treat it as if you opened each file directly. Do not proceed with the skill body until done.
 
 ## Parse arguments
 
@@ -53,7 +59,7 @@ Pass `--repo "$REPO"` to every `devwatch` command to ensure the correct repo is 
 
 ## Execution
 
-1. Read `docs:general/github-writing` — banned tokens, no personal data, per-artifact skeletons. Apply to every title, body, and comment below.
+1. Apply the GitHub-writing rules from the mandatory-reads block (banned tokens, no personal data, per-artifact skeletons) to every title, body, and comment below.
 
 ```bash
 devwatch --repo "$REPO" create-issue \

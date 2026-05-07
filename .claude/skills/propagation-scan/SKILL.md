@@ -4,8 +4,13 @@ description: "Scan the codebase for sites where the current diff's change could 
 
 After a fix or feature lands, find every other site where the same change could apply — and file each site as its own tracked unit of work. File-only: never edits code, never commits, never opens a PR.
 
-Authoritative rule: `docs:general/propagation-scan`.
-GitHub writing rules: `docs:general/github-writing`.
+## Mandatory reads — do this first
+
+Run:
+
+    devwatch --repo "$REPO" doc-read --skill propagation-scan --display
+
+The output contains every doc you must read; treat it as if you opened each file directly. Do not proceed with the skill body until done. The mandatory-reads include the authoritative `propagation-scan` rule — that doc is loaded once here and referenced (not re-read) throughout the rest of this skill.
 
 ## Parse arguments
 
@@ -32,9 +37,9 @@ If RUN_ID is present, skip branch-name validation — the dashboard resolved the
 
 > "Current branch `<branch>` does not belong to issue #<ISSUE>. Check out the correct branch first."
 
-## 2. Read the rule
+## 2. Apply the rule
 
-Load `docs:general/propagation-scan`. That file is the authority on when propagation applies, when to skip, the file-only boundary, the cap, and the human gate. Evaluate the current diff against it; if the rule says "skip," emit `status: skipped` with the reason and stop.
+The mandatory-reads block already loaded the authoritative `propagation-scan` rule — the source of truth on when propagation applies, when to skip, the file-only boundary, the cap, and the human gate. Evaluate the current diff against it; if the rule says "skip," emit `status: skipped` with the reason and stop.
 
 ## 3. Gather the diff
 
@@ -115,7 +120,7 @@ Agent-to-agent confirmation is not sufficient for this skill. Filing issues has 
 
 ## 8. Execute — file issues
 
-1. Read `docs:general/github-writing` — banned tokens, no personal data, per-artifact skeletons. Apply to every title, body, and comment below.
+1. Apply the GitHub-writing rules from the mandatory-reads block (banned tokens, no personal data, per-artifact skeletons) to every title, body, and comment below.
 
 For each approved opportunity, create a child-of-`<ISSUE>` issue:
 
@@ -148,7 +153,7 @@ Surfaced by `/propagation-scan` on #<ISSUE>.
 
 ## Why this is tracked, not inlined
 
-The originating PR is scoped to #<ISSUE>. This site is a candidate for the same treatment but belongs in its own branch and review. See `docs:general/propagation-scan` for the rule.
+The originating PR is scoped to #<ISSUE>. This site is a candidate for the same treatment but belongs in its own branch and review. See the propagation-scan rule.
 ```
 
 **Priority** defaults to `P3-low` (opportunistic, not blocking). Escalate to `P2-medium` when the originating kind is `bugfix_shape` — a bug pattern that recurs is higher-signal than a helper opportunity.
@@ -171,7 +176,7 @@ devwatch --repo "$REPO" agent-comment \
 - #<N3> — <summary>
 
 Cap: <CAP>. Overflow: <K>.
-See \`docs:general/propagation-scan\` for the rule."
+See the propagation-scan rule."
 ```
 
 ## 10. Record completion

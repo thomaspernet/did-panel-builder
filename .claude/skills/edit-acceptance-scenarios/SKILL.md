@@ -11,6 +11,14 @@ The skill is body-edit only. It does **not** touch the lingtai cache
 directly — the next GitHub auto-sync re-parses the body and rebuilds
 the `scenario_links` cache (#1386).
 
+## Mandatory reads — do this first
+
+Run:
+
+    devwatch --repo "$REPO" doc-read --skill edit-acceptance-scenarios --display
+
+The output contains every doc you must read; treat it as if you opened each file directly. Do not proceed with the skill body until done. The mandatory-reads include the authoritative `acceptance-scenarios` doc — the contract for the `Links:` section header, the `<suite>::<file>::<title>` coordinate this skill writes, and the title-stability invariant.
+
 ## Parse arguments
 
 `$ARGUMENTS` is `<issue-number> [--add "<coord>" | --remove "<coord>"]...`.

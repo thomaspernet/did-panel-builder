@@ -1,3 +1,8 @@
+---
+mandatory_for:
+  skills: [issue-to-rule]
+---
+
 # Issue to Rule
 
 When a resolved issue reveals a **class of mistake** — not a single incident — capture the underlying constraint as a persistent rule so the same mistake does not recur. Rule feedback is about text, not code: the fix lives in the code, the **lesson** lives in `.claude/rules/` or a principle doc.

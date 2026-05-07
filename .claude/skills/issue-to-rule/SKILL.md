@@ -6,8 +6,13 @@ Turn a resolved issue into a persistent rule. Read the issue context and its dif
 
 This skill writes text — rule entries in `.claude/rules/*.md` or principle docs under `documentation/general/principles/`. It does **not** modify application code, run tests, commit code changes, or execute Python.
 
-Authoritative rule: `docs:general/issue-to-rule`. Verifier checklist: `docs:general/rules-checklist`.
-GitHub writing rules: `docs:general/github-writing`.
+## Mandatory reads — do this first
+
+Run:
+
+    devwatch --repo "$REPO" doc-read --skill issue-to-rule --display
+
+The output contains every doc you must read; treat it as if you opened each file directly. Do not proceed with the skill body until done. The mandatory-reads include the authoritative `issue-to-rule` doc and the `rules-checklist` verifier — both are loaded once here and referenced (not re-read) throughout the rest of this skill.
 
 ## Parse arguments
 
@@ -35,25 +40,24 @@ Pass `--repo "$REPO"` to every `devwatch` command.
 ## Context loading
 
 1. Read this repo's CLAUDE.md.
-2. Read `docs:general/issue-to-rule` — when extraction applies, the four operations, tier-based placement.
-3. Read `docs:general/rules-checklist` — the verifier gate you will run before writing.
-4. Pull the issue's full context from `devwatch`:
+2. The mandatory-reads block already loaded the authoritative rule (`issue-to-rule`) and the verifier checklist (`rules-checklist`).
+3. Pull the issue's full context from `devwatch`:
    ```bash
    devwatch --repo "$REPO" issue-history <ISSUE> --full --comments
    ```
    This returns the issue's run timeline, prior quality-check reports, fix summaries, and relevant comments — the complete history the skill needs.
-5. Read the diff that fixed the issue:
+4. Read the diff that fixed the issue:
    ```bash
    BASE="${BASE_BRANCH:-$(devwatch --repo "$REPO" branches dev)}"
    git diff "origin/${BASE}...HEAD"
    ```
-6. Read every file in the target tier you might write to, so you can detect conflict or subsumption before drafting:
+5. Read every file in the target tier you might write to, so you can detect conflict or subsumption before drafting:
    - `.claude/rules/*.md` — project-wide always-on rules
    - `documentation/general/principles/**/*.mdx` — language / architecture principles
 
 ## Decide: extract or skip
 
-Evaluate the diff against `docs:general/issue-to-rule` and classify:
+Evaluate the diff against the authoritative `issue-to-rule` doc loaded in the mandatory-reads block and classify:
 
 - **`iteration-only`** — the fix was correct but not generalizable. Record a skipped summary via `devwatch agent-update` with the reason and stop.
 - **`structural`** — a class of mistake exists and the constraint would prevent its next occurrence. Proceed.
@@ -82,7 +86,7 @@ If you cannot pick a tier confidently, the rule is not general enough — skip.
 
 ## Run the verifier
 
-Walk the draft through every item of `docs:general/rules-checklist`. Each item is a yes/no question. Record your answers:
+Walk the draft through every item of the `rules-checklist` loaded in the mandatory-reads block. Each item is a yes/no question. Record your answers:
 
 - **All items pass** → proceed to write.
 - **Any item fails** → revise the draft once and re-run the checklist. If it fails a second time, stop and record the failing items in the `agent-update` summary.
@@ -105,7 +109,7 @@ git commit -m "docs(rules): <operation> rule from #<ISSUE> — <short descriptio
 
 ## Record and comment
 
-1. Read `docs:general/github-writing` — banned tokens, no personal data, per-artifact skeletons. Apply to every title, body, and comment below.
+1. Apply the GitHub-writing rules from the mandatory-reads block (banned tokens, no personal data, per-artifact skeletons) to every title, body, and comment below.
 
 Update the agent-run trace and post a completion comment (use `--run-id` if available, otherwise `--issue`):
 

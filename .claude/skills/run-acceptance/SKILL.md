@@ -12,6 +12,14 @@ Boundary: this skill **runs** the acceptance scenarios — it does not
 file bugs, edit issues, or open PRs. Use ``/new-bug --from-scenario``
 for regression bugs and ``/submit-pr`` for the workflow PR.
 
+## Mandatory reads — do this first
+
+Run:
+
+    devwatch --repo "$REPO" doc-read --skill run-acceptance --display
+
+The output contains every doc you must read; treat it as if you opened each file directly. Do not proceed with the skill body until done. The mandatory-reads include the authoritative `acceptance-scenarios` doc — the contract this skill enforces as the workflow's pre-PR gate, including the title-stability invariant and the regression-vs-acceptance distinction.
+
 ## Detect repo
 
 ```bash

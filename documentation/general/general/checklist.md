@@ -1,3 +1,9 @@
+---
+mandatory_for:
+  universal: true
+  rules: [critical]
+---
+
 # Completion Checklist
 
 Run through this checklist before marking any task as done. Every item is a yes/no question. If you are unsure about a check, follow the link to the full rule.
@@ -10,6 +16,7 @@ This is the general checklist — language-agnostic. After this, run the languag
 
 - [ ] Every change traces back to the issue. No extra features, no drive-by refactors, no "while I'm here" additions. → [No Shortcuts](clean-code#2-no-shortcuts)
 - [ ] No unrelated files modified. If you found something else to fix, create a separate issue. → [No Shortcuts](clean-code#2-no-shortcuts)
+- [ ] Propagation decision made. If the diff adds a helper, pattern, perf fix, or bug-fix shape, run `/propagation-scan` to file sibling sites as their own issues. If the diff is purely local, cosmetic, or a dependency bump, skip the scan. → [Propagation scan](propagation-scan)
 
 ## Code Quality
 

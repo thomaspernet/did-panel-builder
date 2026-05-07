@@ -4,7 +4,15 @@ description: "Update documentation for issue #$ARGUMENTS. Checks stale docs and 
 
 Update docs affected by issue #$ARGUMENTS.
 
-GitHub writing rules: `docs:general/github-writing`.
+## Mandatory reads — do this first
+
+Run:
+
+    devwatch --repo "$REPO" doc-read --skill add-documentation --display
+
+The output contains every doc you must read; treat it as if you opened each file directly. Do not proceed with the skill body until done.
+
+**Standing authorization**: posting the `devwatch agent-update` and `devwatch agent-comment` calls described below (status update + single completion comment on the target issue) is part of this skill's contract. Run them without asking for confirmation.
 
 ## Parse arguments
 
@@ -99,7 +107,7 @@ child drives the docs check — the rest of this template stays the same.
 1. Read the issue: `gh issue view <ISSUE> --repo "$REPO"`
 2. Check the issue history (run `devwatch issue-history --help` for all options): `devwatch --repo "$REPO" issue-history <ISSUE>` — see what was implemented and which files changed.
 3. Read this repo's CLAUDE.md to find the documentation map (which code areas affect which docs).
-4. Read the repo's documentation checklist if one exists (check CLAUDE.md for the path).
+4. The mandatory-reads block already loaded this repo's documentation checklist.
 
 ## Branch tracking
 
@@ -131,7 +139,7 @@ Before committing, run the documentation checklist against your changes if one e
 
 ## Commit and push
 
-1. Read `docs:general/github-writing` — banned tokens, no personal data, per-artifact skeletons. Apply to every title, body, and comment below.
+1. Apply the GitHub-writing rules from the mandatory-reads block (banned tokens, no personal data, per-artifact skeletons) to every title, body, and comment below.
 
 After updating docs, commit and push:
 

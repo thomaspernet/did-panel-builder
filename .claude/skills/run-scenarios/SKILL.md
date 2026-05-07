@@ -7,6 +7,14 @@ spawns Playwright, copies artifacts, and POSTs the run row through the local
 lingtai server (the server is the single SQLite writer). This skill is a thin
 wrapper that interprets the result and offers next steps.
 
+## Mandatory reads — do this first
+
+Run:
+
+    devwatch --repo "$REPO" doc-read --skill run-scenarios --display
+
+The output contains every doc you must read; treat it as if you opened each file directly. Do not proceed with the skill body until done. The mandatory-reads include the authoritative `acceptance-scenarios` doc — the contract for the `<suite>::<file>::<title>` coordinate this skill accepts as a target, plus the title-stability invariant.
+
 ## Parse arguments
 
 Extract `TARGET` from `$ARGUMENTS`. Examples:

@@ -1,3 +1,8 @@
+---
+mandatory_for:
+  universal: true
+---
+
 # Documentation
 
 How to write and maintain documentation. These principles apply to any project.
@@ -36,17 +41,48 @@ A doc should be readable without context. A developer opening the file for the f
 
 Docs reference each other, never duplicate each other. If concept X is explained in doc A, doc B links to doc A — it does not re-explain X.
 
-Use the `docs:` prefix convention for references: `docs:general/principles/clean-code` resolves to the actual file path. This makes references grep-able and verifiable.
+Reference docs by their bare path under the documentation root (e.g. `general/clean-code.md`). The audience contract — which docs a given skill must read — is declared in each doc's `mandatory_for:` frontmatter and resolved by `devwatch doc-read --skill <name> --display`. See `general/mandatory-for-schema.md` for the schema; `devwatch doc-validate` enforces it.
 
 ### Hierarchy
 
-Organize docs by who needs them and when:
+Docs live under `documentation/` in three top-level areas. Each area has a distinct audience and purpose — keep them separate.
 
-- **General principles** — reusable across any project. Read once, apply everywhere.
-- **Project-specific** — how this particular codebase works. Read when working in this project.
-- **Guides** — step-by-step instructions for specific tasks. Read when doing that task.
+- **`general/`** — cross-project principles, conventions, and language guides (clean code, testing, Python patterns, TypeScript patterns, checklists). Reusable across any codebase.
+- **`project/`** — developer-facing docs for *this* codebase: architecture, layer boundaries, key directories, design decisions, trade-offs.
+- **`product/`** — user-facing docs: what the product does, who it's for, and how to use it. Written for non-technical readers.
 
-A developer new to the project reads: general principles → project architecture → the specific area they are working in. The docs should support this reading order.
+Reading order for someone new to the project:
+
+1. `general/` — how we write code in general (only the parts relevant to the area you will touch).
+2. `project/` — how *this* codebase is structured and why.
+3. `product/` — what the product is and who uses it, if the work needs that context.
+
+A developer fixing a bug typically needs `general/` + `project/`. Someone writing release notes or user-facing copy needs `product/`. An AI agent onboarding to the repo should read in the same order, scoped to the area it is about to modify.
+
+## Per-Area Writing Guidance
+
+Each area has a different audience. What belongs in one does not belong in the others.
+
+### `general/`
+
+- **Audience**: developers and AI agents, across any project using these templates.
+- **Scope**: principles, patterns, conventions, checklists that hold regardless of the specific codebase.
+- **Tone**: direct, prescriptive, example-driven. State the rule, show a short example, explain *why*.
+- **Avoid**: references to this project's directories, entities, or business logic. If a doc only makes sense in one codebase, it belongs in `project/`, not here.
+
+### `project/`
+
+- **Audience**: developers and AI agents working in this specific codebase.
+- **Scope**: architecture, module boundaries, data flow, the real names of entities and services, decisions specific to this project and the trade-offs behind them.
+- **Tone**: concrete and specific. Name real files, real modules, real tables. Explain *why* this codebase is shaped this way.
+- **Avoid**: restating general principles already in `general/` — link to them. Avoid user-facing framing ("what the product does") — that belongs in `product/`.
+
+### `product/`
+
+- **Audience**: non-technical readers — end users, stakeholders, new hires before they touch the code.
+- **Scope**: what the product is, who it's for, the problem it solves, how to use it, common workflows, examples, troubleshooting.
+- **Tone**: plain language. Short sentences. Concrete outcomes ("upload a file and get a summary"), not implementation ("the ingest pipeline writes to the blob store").
+- **Avoid**: internal jargon, module names, class names, file paths, API signatures, database terms, code snippets beyond what a user would paste into a UI. If a reader needs to know the codebase to understand a sentence, rewrite the sentence.
 
 ## Tone
 

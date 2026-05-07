@@ -4,7 +4,13 @@ description: "Run the completion checklists against the current branch changes. 
 
 Quality gate. Reviews code against the repo's checklists, posts a report to the GitHub issue, and returns pass/fail. This skill is a gate — if it fails, do NOT proceed to `/submit-pr`.
 
-GitHub writing rules: `docs:general/github-writing`.
+## Mandatory reads — do this first
+
+Run:
+
+    devwatch --repo "$REPO" doc-read --skill check-code-quality --display
+
+The output contains every doc you must read; treat it as if you opened each file directly. Do not proceed with the skill body until done.
 
 ## Parse arguments
 
@@ -74,7 +80,7 @@ Identify which languages are involved from file extensions:
 
 ## 4. Run the checklists
 
-Read this repo's CLAUDE.md for the checklist paths. Then read and check every item against the diff:
+The mandatory-reads block already loaded every checklist this skill needs. Walk each item against the diff:
 
 1. General checklist (scope, quality, decoupling, cleanup, tests)
 2. If Python files changed: Python-specific checklist
@@ -115,7 +121,7 @@ For each failure, include the specific file/line, what's wrong, and the path to 
 
 ## 7. Post the report and trace
 
-1. Read `docs:general/github-writing` — banned tokens, no personal data, per-artifact skeletons. Apply to every title, body, and comment below.
+1. Apply the GitHub-writing rules from the mandatory-reads block (banned tokens, no personal data, per-artifact skeletons) to every title, body, and comment below.
 
 If an issue number was provided, use the CLI to post the report and record the trace:
 
