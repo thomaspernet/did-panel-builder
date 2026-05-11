@@ -46,12 +46,35 @@ Pass `--repo "$REPO"` to every `devwatch` command to ensure the correct repo is 
    ```bash
    git branch -a --list "*fix/<ISSUE>-*" "*feat/<ISSUE>-*" "*refactor/<ISSUE>-*" "*chore/<ISSUE>-*" "*docs/<ISSUE>-*" "*ci-fix/<ISSUE>-*"
    ```
+   Call the result `BRANCH`.
 
-3. Validate safety:
-   - Branch must not be currently checked out
-   - Branch must not be one of the repo's pipeline branches (dev / staging / prod from `config.yaml`) or a universally protected name (`main`, `master`, `develop`)
+4. Validate safety:
+   - `BRANCH` must not be one of the repo's pipeline branches (dev / staging / prod from `config.yaml`) or a universally protected name (`main`, `master`, `develop`)
 
-4. If all checks pass, proceed with deletion.
+5. **Resolve checkout target.** The CLI refuses to delete the currently-checked-out branch, so the agent must move HEAD itself before invoking deletion — and on epic children that means the epic integration branch, not the dev branch.
+
+   ```bash
+   WORKFLOW_JSON=$(devwatch --repo "$REPO" workflow-get --issue <ISSUE>)
+   ```
+
+   - If `WORKFLOW_JSON` is non-null and `.strategy == "epic_integration"`, set `TARGET` to the workflow's `canonical_branch` — the `epic/<root>-<slug>` integration branch the child landed on.
+   - Otherwise, resolve the configured dev branch:
+
+     ```bash
+     TARGET=$(devwatch --repo "$REPO" branches dev)
+     ```
+
+     If the repo has no `dev` configured (e.g. release-only repos), fall back to `branches prod`. Do **not** hardcode a branch name (e.g. `dev`) — every repo resolves its own pipeline branches through `config.yaml`.
+
+6. **Switch HEAD if it is on `BRANCH`.** Compare `git branch --show-current` to `BRANCH`; if they match, run:
+
+   ```bash
+   git checkout "$TARGET"
+   ```
+
+   If HEAD is already on a different branch, leave it alone — the agent may be mid-task on something unrelated.
+
+7. If all checks pass, proceed with deletion.
 
 ## Execution
 

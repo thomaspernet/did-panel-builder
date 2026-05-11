@@ -19,10 +19,21 @@ The output contains every doc you must read; treat it as if you opened each file
 
 Extract `TARGET` from `$ARGUMENTS`. Examples:
 
-- `e2e/smoke-chat.spec.ts` → spec path, runs the whole file.
-- `123` → numeric scenario id, runs that one test (looked up via the
-  scenario catalogue).
+- `123` → numeric scenario id (the dashboard's per-row Run button always
+  passes this shape — the catalogue already pinned the id at click
+  time). Forward as `--id 123` so the CLI skips coord parsing entirely.
+- `--spec e2e/login.spec.ts` → spec-scoped run (#1860). Runs every
+  active scenario under that file as one Playwright invocation and
+  records one `target_kind='scenario'` row per scenario id so each pill
+  on the workflow Acceptance panel flips independently. Used by the
+  panel's per-file "Run spec" button when ordering-dependent tests
+  (test 2 needs test 1's setup) must execute together.
 - `smoke::e2e/login.spec.ts::logs in` → coordinate `<suite>::<file>::<title>`.
+  Operator-only escape hatch — use the id form when the dashboard
+  surfaces one.
+- `e2e/smoke-chat.spec.ts` → spec path positional, runs the whole file
+  but records one `target_kind='suite'` row (operator escape hatch
+  only). Prefer `--spec <path>` when you want per-pill refresh.
 
 Optional flags forwarded to the CLI:
 
@@ -55,8 +66,22 @@ Pass `--repo "$REPO"` to every `devwatch` command.
 
 ## Run
 
+A purely-numeric `$TARGET` is a scenario id; pass it through `--id` so
+the CLI dispatches via the per-id service path without trying to parse
+it as a coordinate. A `$TARGET` starting with `--spec ` (the workflow
+Acceptance panel's "Run spec" button) is forwarded verbatim so the CLI
+runs the whole spec and writes per-scenario rows. Anything else
+(coordinate / bare spec path) goes through the positional form.
+
 ```bash
-devwatch --repo "$REPO" scenarios run "$TARGET"
+if [[ "$TARGET" =~ ^[0-9]+$ ]]; then
+  devwatch --repo "$REPO" scenarios run --id "$TARGET"
+elif [[ "$TARGET" == --spec\ * ]]; then
+  # shellcheck disable=SC2086 — splitting --spec from its path is intentional.
+  devwatch --repo "$REPO" scenarios run $TARGET
+else
+  devwatch --repo "$REPO" scenarios run "$TARGET"
+fi
 ```
 
 The CLI:

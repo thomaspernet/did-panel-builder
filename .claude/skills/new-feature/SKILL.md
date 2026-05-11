@@ -14,15 +14,16 @@ The output contains every doc you must read; treat it as if you opened each file
 
 ## Parse arguments
 
-Extract description, optional run ID, optional body-file path, and optional parent refs from `$ARGUMENTS`:
-- `$ARGUMENTS` = `"add dark mode"` -> DESCRIPTION="add dark mode", RUN_ID=(none), PARENTS=()
+Extract description, optional run ID, optional body-file path, optional parent refs, and optional brainstorm session from `$ARGUMENTS`:
+- `$ARGUMENTS` = `"add dark mode"` -> DESCRIPTION="add dark mode", RUN_ID=(none), PARENTS=(), FROM_BRAINSTORM=(none)
 - `$ARGUMENTS` = `"add dark mode --run 7"` -> DESCRIPTION="add dark mode", RUN_ID=7, PARENTS=()
 - `$ARGUMENTS` = `"add dark mode --parent 42"` -> PARENTS=(42)
 - `$ARGUMENTS` = `"add dark mode --parent 42 --parent 50"` -> PARENTS=(42, 50) — repeatable
 - `$ARGUMENTS` = `"add dark mode --parent owner/repo#42"` -> cross-repo parent accepted
 - `$ARGUMENTS` = `"--body-file /tmp/devwatch-issue-body-XXX.json --run 7"` -> read the JSON file for the payload; no inline description
+- `$ARGUMENTS` = `"--from-brainstorm 11-05-26/dark-mode-rollout"` -> FROM_BRAINSTORM="11-05-26/dark-mode-rollout" (bare slug also accepted when unambiguous); the skill seeds the issue body from the session contents and the CLI back-links the session to the new issue in the same transaction
 
-Strip `--run <N>`, `--body-file <PATH>`, and every `--parent <REF>` from the description before using it.
+Strip `--run <N>`, `--body-file <PATH>`, `--from-brainstorm <SESSION>`, and every `--parent <REF>` from the description before using it.
 
 **If `--body-file <PATH>` is present:** read the file with your Read tool — it is a JSON object with the exact bytes of the request. Use its fields for the feature issue:
 - `description` → primary body text (verbatim, no shell quoting to worry about)
@@ -33,6 +34,21 @@ Strip `--run <N>`, `--body-file <PATH>`, and every `--parent <REF>` from the des
 The body-file path is generated server-side and only contains filesystem-safe characters. Do NOT paste the file contents into Bash; read it with the Read tool.
 
 The CLI accepts the parent as `N`, `#N`, or `owner/repo#N`. Preserve the exact form the user typed.
+
+## Pull brainstorm context (when `--from-brainstorm` is set)
+
+When `FROM_BRAINSTORM` is provided, the issue title and body get seeded from the session contents:
+
+```bash
+SESSION_TEXT=$(devwatch --repo "$REPO" brainstorm-read --session "$FROM_BRAINSTORM" --display)
+```
+
+The output streams every file under the session (README first, then alphabetised siblings, then subfolders) with `===== <abs path> =====` headers — the same shape as `doc-read --display`. Summarise it into the issue body:
+
+1. Read the session's README (the first block in the stream) for `## Why`, `## Open Questions`, `## What's next`.
+2. Read any sibling files (notes, sketches, follow-ups) for additional context the README does not capture.
+3. Promote the `## Why` into the issue's description, and any concrete acceptance signals from the session into the `## Acceptance criteria` block.
+4. The CLI back-links the session to the new issue automatically — do **not** write `brainstorm: <path>` into the body yourself.
 
 ## Detect repo
 
@@ -70,10 +86,11 @@ devwatch --repo "$REPO" create-issue \
   --priority <P0-critical|P1-high|P2-medium|P3-low> \
   --parent <N> \
   --epic \
+  --from-brainstorm <SESSION> \
   --run-id <RUN_ID>
 ```
 
-Add one `--parent <REF>` for each entry in `PARENTS` (repeatable). Omit the flag entirely when `PARENTS` is empty. Omit `--run-id` if no RUN_ID was parsed from arguments. Include `--epic` only when `IS_EPIC=true`.
+Add one `--parent <REF>` for each entry in `PARENTS` (repeatable). Omit the flag entirely when `PARENTS` is empty. Omit `--run-id` if no RUN_ID was parsed from arguments. Include `--epic` only when `IS_EPIC=true`. Include `--from-brainstorm <SESSION>` when `FROM_BRAINSTORM` is set — the CLI back-links the session to the new issue (writes `linked_issues` in the session README AND appends `brainstorm: <path>` under the issue body's `Links:` block) in the same transaction.
 
 The CLI handles everything deterministically: issue creation, labels, devwatch trace, sync. When `--epic` is passed, the CLI also creates and pushes the `epic/<N>-<slug>` branch on origin so child issues can branch off it (see #942). The `epic` label is authoritative — GitHub is the source of truth and the server derives the `is_epic` column from the label on every sync.
 

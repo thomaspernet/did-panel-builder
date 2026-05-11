@@ -14,10 +14,13 @@ The output contains every doc you must read; treat it as if you opened each file
 
 ## Parse arguments
 
-- `$ARGUMENTS` = `"42"` → ISSUE=42, RUN_ID=(none), BASE_BRANCH=(none), CAP=5
+- `$ARGUMENTS` = `"42"` → ISSUE=42, RUN_ID=(none), BASE_BRANCH=(none), HEAD_SHA=(none), CAP=5
 - `$ARGUMENTS` = `"42 --run 7"` → ISSUE=42, RUN_ID=7
 - `$ARGUMENTS` = `"42 --run 7 --base-branch feat/364-x"` → ISSUE=42, RUN_ID=7, BASE_BRANCH=feat/364-x
+- `$ARGUMENTS` = `"42 --run 7 --base-branch local-dev-next --head 9f3a2b1"` → ISSUE=42, RUN_ID=7, BASE_BRANCH=local-dev-next, HEAD_SHA=9f3a2b1
 - `$ARGUMENTS` = `"42 --cap 3"` → CAP=3 (overrides the default top-5 cap)
+
+`--head <sha>` is set by the dispatcher when the action fires inside an `epic_integration` chain (#1916): by the time this skill runs, `merge-to-epic` and `delete-branch` have already destroyed the feature branch, so a working-tree diff would be empty. The flag pins the diff to the implement run's tip — the same diff every time, regardless of where HEAD now sits.
 
 ## Detect repo
 
@@ -33,7 +36,7 @@ Pass `--repo "$REPO"` to every `devwatch` and `gh` command.
 git branch --show-current
 ```
 
-If RUN_ID is present, skip branch-name validation — the dashboard resolved the branch. Otherwise require the branch to start with `fix/<ISSUE>-`, `feat/<ISSUE>-`, `refactor/<ISSUE>-`, `chore/<ISSUE>-`, or `docs/<ISSUE>-`. If not, stop and tell the user:
+If RUN_ID or HEAD_SHA is present, skip branch-name validation — the dispatcher resolved the diff coordinates and the working tree is no longer authoritative. Otherwise require the branch to start with `fix/<ISSUE>-`, `feat/<ISSUE>-`, `refactor/<ISSUE>-`, `chore/<ISSUE>-`, or `docs/<ISSUE>-`. If not, stop and tell the user:
 
 > "Current branch `<branch>` does not belong to issue #<ISSUE>. Check out the correct branch first."
 
@@ -45,8 +48,14 @@ The mandatory-reads block already loaded the authoritative `propagation-scan` ru
 
 ```bash
 BASE="${BASE_BRANCH:-$(devwatch --repo "$REPO" branches dev)}"
-git diff "origin/${BASE}...HEAD"
+if [ -n "$HEAD_SHA" ]; then
+  git diff "origin/${BASE}...${HEAD_SHA}"
+else
+  git diff "origin/${BASE}...HEAD"
+fi
 ```
+
+When `--head <sha>` is supplied the diff is pinned to that SHA — deterministic across re-runs and immune to checkout state. The implement run's tip SHA is recorded on the `agent_runs` row by `/fix-issue` / `/feat-issue`; the dispatcher resolves it at trigger time and passes it here.
 
 If the diff is empty, purely cosmetic (formatting or import reorder), or limited to a dependency bump (`uv.lock`, `package-lock.json`, `package.json` deps), emit `status: skipped` with a reason and stop.
 

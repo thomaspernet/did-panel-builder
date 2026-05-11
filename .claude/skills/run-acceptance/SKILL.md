@@ -58,35 +58,32 @@ probes the baseURL itself; if you know the app is down, start it first
 
 ## Run
 
-The skill bundles every coordinate into a single ``devwatch scenarios
-run`` call so PW dedupes specs internally and the gate stays one
-terminal flow. Each coordinate's spec file becomes a positional
-argument to ``npx playwright test``.
+The skill passes every coordinate verbatim to ``devwatch scenarios
+run-many``. The CLI extracts each coordinate's ``<file>`` segment for
+PW's spec-path argument list (deduped so PW sees each file once) and
+keeps the full coordinate around so the per-scenario run row carries
+``target_kind=scenario,target_id=<scenario id>`` — the only shape that
+refreshes the dashboard pill and the acceptance gate's per-scenario
+``last_run_status``/``last_run_commit_sha`` columns (#1848).
 
 ```bash
-SPECS=()
-for COORD in "${COORDS[@]}"; do
-  # Coordinate is <suite>::<file>::<title> — extract the file segment.
-  SPEC="$(echo "$COORD" | awk -F'::' '{print $2}')"
-  SPECS+=("$SPEC")
-done
-
-# Deduplicate spec paths so PW sees each file once.
-mapfile -t UNIQUE_SPECS < <(printf '%s\n' "${SPECS[@]}" | sort -u)
-
-devwatch --repo "$REPO" scenarios run-many "${UNIQUE_SPECS[@]}"
+devwatch --repo "$REPO" scenarios run-many "${COORDS[@]}"
 ```
 
 The CLI:
 
-- Resolves each spec path against the repo's PW config.
+- Resolves every coordinate to its active scenario row via
+  ``POST /api/scenarios/resolve-coordinate``. A coord that doesn't
+  resolve hard-fails with a "re-sync the catalogue" message.
 - Spawns one ``npx playwright test <spec1> <spec2> … --reporter=json``
-  invocation. PW dedupes internally; running the same suite twice is a
-  no-op.
+  invocation. PW dedupes specs internally; running the same suite
+  twice is a no-op.
 - Records ``commit_sha = git rev-parse HEAD`` so the dispatcher's
   classifier can compare against the workflow branch's HEAD.
-- POSTs each scenario's result row to ``/api/scenarios/runs`` so the
-  dashboard pill and the gate's truth source share one write site.
+- Parses the PW JSON reporter, matches each per-test result back to
+  its coordinate by ``(projectName, file, title)``, and POSTs one
+  ``target_kind=scenario`` row per coord to ``/api/scenarios/runs`` so
+  the dashboard pill and the gate's truth source share one write site.
 
 The command exits ``0`` on a green run and non-zero on red.
 

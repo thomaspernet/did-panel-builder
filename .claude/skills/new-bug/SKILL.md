@@ -14,16 +14,17 @@ The output contains every doc you must read; treat it as if you opened each file
 
 ## Parse arguments
 
-Extract description, optional run ID, optional body-file path, optional parent refs, optional scenario coordinate, and optional explicit child-of link from `$ARGUMENTS`:
-- `$ARGUMENTS` = `"login page broken"` -> DESCRIPTION="login page broken", RUN_ID=(none), PARENTS=(), FROM_SCENARIO=(none), LINK_TO=(none)
+Extract description, optional run ID, optional body-file path, optional parent refs, optional scenario coordinate, optional explicit child-of link, and optional brainstorm session from `$ARGUMENTS`:
+- `$ARGUMENTS` = `"login page broken"` -> DESCRIPTION="login page broken", RUN_ID=(none), PARENTS=(), FROM_SCENARIO=(none), LINK_TO=(none), FROM_BRAINSTORM=(none)
 - `$ARGUMENTS` = `"login page broken --run 7"` -> DESCRIPTION="login page broken", RUN_ID=7, PARENTS=()
 - `$ARGUMENTS` = `"login page broken --parent 42"` -> DESCRIPTION="login page broken", PARENTS=(42)
 - `$ARGUMENTS` = `"login page broken --parent 42 --parent 50"` -> PARENTS=(42, 50) — repeatable
 - `$ARGUMENTS` = `"login page broken --parent owner/repo#42"` -> cross-repo parent accepted
 - `$ARGUMENTS` = `"--body-file /tmp/devwatch-issue-body-XXX.json --run 7"` -> read the JSON file for the payload; no inline description
 - `$ARGUMENTS` = `'--from-scenario "smoke::e2e/smoke-chat.spec.ts::chat toggle button is visible in header" --link-to 1100'` -> FROM_SCENARIO=`<coord>`, LINK_TO=1100, no inline description (the skill prefills title + body from the failed run)
+- `$ARGUMENTS` = `"--from-brainstorm 11-05-26/login-bug-repro"` -> FROM_BRAINSTORM="11-05-26/login-bug-repro" (bare slug also accepted when unambiguous); the skill seeds the issue body from the session contents and the CLI back-links the session to the new issue in the same transaction
 
-Strip `--run <N>`, `--body-file <PATH>`, every `--parent <REF>`, `--from-scenario "<COORD>"`, and `--link-to <REF>` from the description before using it. The `<COORD>` is double-quoted because it contains `::` separators and (often) spaces in the title segment — preserve the quotes when shelling out and keep the value intact (do not split on `::` yourself; pass it through).
+Strip `--run <N>`, `--body-file <PATH>`, every `--parent <REF>`, `--from-scenario "<COORD>"`, `--link-to <REF>`, and `--from-brainstorm <SESSION>` from the description before using it. The `<COORD>` is double-quoted because it contains `::` separators and (often) spaces in the title segment — preserve the quotes when shelling out and keep the value intact (do not split on `::` yourself; pass it through).
 
 **If `--body-file <PATH>` is present:** read the file with your Read tool — it is a JSON object with the exact bytes of the request. Use its fields for the issue:
 - `description` → primary body text (verbatim, no shell quoting to worry about)
@@ -72,6 +73,16 @@ Parse the JSON response (shape: `{scenario, group, suite, last_runs: [...]}`). P
 
 Write a `## Failure` block at the top of the issue body with the truncated error message and the artifact paths. Keep it short — the goal is enough context for `/fix-issue` to start; the dashboard's scenario drawer (#1387) carries the full artifact view.
 
+## Pull brainstorm context (when `--from-brainstorm` is set)
+
+When `FROM_BRAINSTORM` is provided, the issue title and body get seeded from the session contents:
+
+```bash
+SESSION_TEXT=$(devwatch --repo "$REPO" brainstorm-read --session "$FROM_BRAINSTORM" --display)
+```
+
+The output streams every file under the session (README first, then alphabetised siblings, then subfolders) with `===== <abs path> =====` headers — the same shape as `doc-read --display`. Summarise it into the issue body — promote the `## Why` into the bug description, and any concrete repro steps from the session into the `## Steps to reproduce` block. The CLI back-links the session to the new issue automatically — do **not** write `brainstorm: <path>` into the body yourself.
+
 ## Intelligence (what you decide)
 
 1. Write a clear issue title and structured body (description, steps to reproduce, severity). When `FROM_SCENARIO` is set and the user did not pass an inline description, default the title to `Regression: <scenario.title>` and seed the body from the failure block above.
@@ -101,10 +112,11 @@ devwatch --repo "$REPO" create-issue \
   --parent <N> \
   --regression-scenario "<COORD>" \
   --epic \
+  --from-brainstorm <SESSION> \
   --run-id <RUN_ID>
 ```
 
-Add one `--parent <REF>` for each entry in `PARENTS` (repeatable). Add one `--regression-scenario "<COORD>"` for each scenario coordinate the issue should track — pass `FROM_SCENARIO` here when it is set; the flag is repeatable for issues that cover multiple regressions. Omit `--parent` entirely when `PARENTS` is empty; omit `--regression-scenario` entirely when no scenario is in scope. Omit `--run-id` if no RUN_ID was parsed from arguments. Include `--epic` only when `IS_EPIC=true`.
+Add one `--parent <REF>` for each entry in `PARENTS` (repeatable). Add one `--regression-scenario "<COORD>"` for each scenario coordinate the issue should track — pass `FROM_SCENARIO` here when it is set; the flag is repeatable for issues that cover multiple regressions. Omit `--parent` entirely when `PARENTS` is empty; omit `--regression-scenario` entirely when no scenario is in scope. Omit `--run-id` if no RUN_ID was parsed from arguments. Include `--epic` only when `IS_EPIC=true`. Include `--from-brainstorm <SESSION>` when `FROM_BRAINSTORM` is set — the CLI back-links the session to the new issue (writes `linked_issues` in the session README AND appends `brainstorm: <path>` under the issue body's `Links:` block) in the same transaction.
 
 The CLI handles everything deterministically: issue creation, labels, devwatch trace, sync. The body's `Links:` block is rendered by the CLI — it always emits a single `Links:` header followed by `- child-of: #N` lines (one per parent) and `regression-scenario: <coord>` lines (one per scenario), in that order. The body parser added in #1386 picks the regression line up on the next sync and rebuilds the `scenario_links` cache. When `--epic` is passed, the CLI also creates and pushes the `epic/<N>-<slug>` branch on origin so child issues can branch off it (see #942). The `epic` label is authoritative — GitHub is the source of truth and the server derives the `is_epic` column from the label on every sync.
 
