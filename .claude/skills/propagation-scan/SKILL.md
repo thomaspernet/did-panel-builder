@@ -131,9 +131,30 @@ Agent-to-agent confirmation is not sufficient for this skill. Filing issues has 
 
 1. Apply the GitHub-writing rules from the mandatory-reads block (banned tokens, no personal data, per-artifact skeletons) to every title, body, and comment below.
 
-For each approved opportunity, create a child-of-`<ISSUE>` issue:
+2. Resolve the scan target's epic **once**, before the filing loop:
 
 ```bash
+EPIC=$(devwatch --repo "$REPO" epic-parent --issue <ISSUE>)
+```
+
+`epic-parent` walks the scan target's `child-of` chain and prints the nearest ancestor carrying the `epic` label, or an empty string when the scan target has no epic. The epic is a property of the scan target, not of the candidate site — resolve it once and reuse `$EPIC` for every issue this run files.
+
+For each approved opportunity, create the issue. The `--parent` flags depend on whether the scan target has an epic — when `$EPIC` is non-empty, pass it as a second `--parent`:
+
+```bash
+# Scan target has an epic ($EPIC is non-empty) — two --parent flags:
+devwatch --repo "$REPO" create-issue \
+  --type feature \
+  --title "propagation: <one-line summary>" \
+  --body "<markdown body>" \
+  --area <area> \
+  --priority <P2-medium|P3-low> \
+  --parent <ISSUE> \
+  --parent "$EPIC" \
+  --run-id <RUN_ID> \
+  --no-claim-run
+
+# Scan target has no epic ($EPIC is empty) — one --parent flag:
 devwatch --repo "$REPO" create-issue \
   --type feature \
   --title "propagation: <one-line summary>" \
@@ -154,15 +175,15 @@ written once, not re-stamped per child.
 
 **Title format:** every propagation issue title is `propagation: <one-line summary>` — the `propagation:` prefix exactly once, then the candidate's one-line summary. No other prefix, no descriptive-only title.
 
-**Exactly one `--parent`, and it is the scan target.** `--parent <ISSUE>` appears **exactly once** in the invocation; `<ISSUE>` is the scan target passed in `$ARGUMENTS` — nothing else. `devwatch create-issue --parent` accepts the flag multiple times, but propagation-scan never passes it twice. A propagation issue is a sibling of exactly one originating issue; its parent is the scan target — full stop. This is the authoritative single-parent rule from the `propagation-scan` rule doc loaded in the mandatory reads — do not restate or reinterpret it, follow it.
+**Parentage — the scan target, plus its epic when it has one.** Every propagation issue carries `--parent <ISSUE>` — the scan target passed in `$ARGUMENTS` — and that link is **never** omitted. When `epic-parent` resolved a non-empty `$EPIC`, the issue **also** carries `--parent "$EPIC"` so it groups beside the epic's other children in the issue tree instead of sitting one hop below them. When `$EPIC` is empty, the scan-target link stands alone. This is the authoritative parentage rule from the `propagation-scan` rule doc loaded in the mandatory reads — do not restate or reinterpret it, follow it.
 
 Do **not**:
 
-- pass the scan target's epic as a `--parent`,
-- pass the workflow root (or any workflow the scan target is a step in) as a `--parent`,
-- walk the `child-of` chain upward and add any ancestor as a `--parent`.
+- pass any `--parent` other than the scan target and its resolved epic — no non-epic intermediate ancestor, no second epic deeper in the chain,
+- pass the workflow root (or any workflow the scan target is a step in) as a `--parent` — the workflow is execution metadata, not issue-tree parentage,
+- omit `--parent <ISSUE>` — the scan-target link is always present, even when the `$EPIC` link is added alongside it.
 
-The scan target's epic, parent, ancestors, and the workflow it belongs to are *organisation* — how the scan target is filed — not *parentage* of the propagation child. The forbidden move is the ancestor-walk: seeing an epic or workflow root "in scope" and helpfully linking it too. Every filed issue carries exactly one `child-of`, the scan target — never zero, never more than one.
+The scan target records *why* the issue exists; its epic records *where the work groups*. Those are the only two `child-of` links a propagation issue may carry. The forbidden move is walking the `child-of` chain *past* the epic — onto a non-epic ancestor, a deeper epic, or workflow structure — and helpfully linking it too.
 
 Issue body template:
 
@@ -203,8 +224,11 @@ gh issue view <N> --repo "$REPO" --json number,labels,body
 
 Assert both of the following:
 
-1. **Exactly one `child-of` link, and it is the scan target.** Parse the `Links:` section of the body — there must be exactly one `child-of: #<M>` line and `<M>` must equal `<ISSUE>`. Zero `child-of` links (missing-link defect) and more than one (excess-link defect, e.g. the scan target's epic or workflow root walked in) both fail.
-2. **Not labelled `epic`.** The `epic` label must not appear on the issue. A propagation child is a flat child of the scan target, never an umbrella.
+1. **The `child-of` set is exactly the scan target, plus its epic if it has one.** Parse the `Links:` section of the body and collect every `child-of: #<M>` line:
+   - `<ISSUE>` (the scan target) **must** be present. Zero `child-of` links is the missing-link defect.
+   - `$EPIC` (the epic resolved in step 8) **must** be present if and only if `epic-parent` returned a non-empty value. When the scan target has no epic, the scan-target link is the only link.
+   - **No other** `child-of` link may appear — a non-epic intermediate ancestor, a second epic deeper in the chain, or a workflow root is the excess-link defect.
+2. **Not labelled `epic`.** The `epic` label must not appear on the issue. A propagation child is a flat child, never an umbrella.
 
 If **any** filed issue fails either assertion, do not post the summary and do not record completion as `completed`. Emit `status: failed`, naming every offending issue number and which assertion it broke, and stop. A run that filed issues violating the contract is a failed run, not a completed one — the human needs the issue numbers to remediate.
 
