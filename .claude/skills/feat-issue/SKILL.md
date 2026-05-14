@@ -56,7 +56,7 @@ report, follow the PR — that is what is actually in production.
 issue body indicates this is a sub-feature — phrases like *"sub-feature of #N"*,
 *"part of epic #N"*, *"extends #N"*, or *"child-of #N"* — surface this to the
 user once before coding: *"This issue mentions #N and has no `child-of` link.
-Link it before I start? Run: `devwatch link <ISSUE> --to N --type child-of`"*
+Link it before I start? Run: `devwatch link <ISSUE> N --type child-of`"*
 Do not auto-create the link. Proceed if the user says no — weaker mentions
 like *"related to #N"* or *"see #N"* are not parent relationships.
 

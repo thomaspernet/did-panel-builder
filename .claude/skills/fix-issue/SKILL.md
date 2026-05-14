@@ -56,7 +56,7 @@ that is what was actually shipped.
 issue body mentions another issue via phrases like *"while testing #N"*,
 *"regression of #N"*, *"found in #N"*, or *"child-of #N"*, surface this to
 the user once before coding: *"This issue mentions #N and has no `child-of`
-link. Link it before I start? Run: `devwatch link <ISSUE> --to N --type child-of`"*
+link. Link it before I start? Run: `devwatch link <ISSUE> N --type child-of`"*
 Do not auto-create the link. Proceed if the user says no — weaker mentions
 like *"related to #N"* or *"see #N"* are not parent relationships.
 
