@@ -176,6 +176,45 @@ When the run belongs to a workflow step, `agent-update --branch` also updates `w
 4. Fix the bug properly. Leave the code you touch better than you found it.
 5. Run tests.
 
+## No-op terminal path (#2103)
+
+If — after reading the issue, the lineage, and the existing code — you
+conclude **no code change is needed** (the bug is a duplicate of a closed
+issue, was already fixed by a sibling PR, the reported behaviour is
+working as intended, or the issue is invalid), do NOT exit silently or
+take the success path. Both produce wedged runs:
+
+- Exiting silently leaves the agent run as ``closed``, which the
+  dispatcher reads as a structural failure and halts the entire workflow.
+- Faking a commit and taking the ``ready_for_review`` path is dishonest
+  and ships an empty PR.
+
+Take the no-op terminal path instead:
+
+1. Close the GitHub issue with a comment explaining why:
+
+   ```bash
+   gh issue close <ISSUE> --repo "$REPO" --comment "Closing as <reason>: <one-line explanation, link to the duplicate/fixing PR/commit>."
+   ```
+
+2. Report completion as a no-op (no branch, no commits, no files):
+
+   ```bash
+   devwatch --repo "$REPO" agent-update \
+     --run-id <RUN_ID> \
+     --status completed \
+     --summary "no-op: <one-line reason — duplicate of #N / already fixed by <commit> / invalid because <reason>>"
+   ```
+
+The dispatcher detects the closed GitHub issue at IMPLEMENT-SUCCESS time,
+skips the rest of this run's actions (quality / docs / PR), marks the
+workflow step done, and advances the chain to the next child. The
+workflow stays ``active``.
+
+If RUN_ID is unavailable, fall back to ``--issue <ISSUE>``. Do not call
+``agent-comment`` for the no-op — the close comment already explains the
+outcome on the issue.
+
 ## Wrap up
 
 After the fix is complete and tests pass:

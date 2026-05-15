@@ -131,30 +131,9 @@ Agent-to-agent confirmation is not sufficient for this skill. Filing issues has 
 
 1. Apply the GitHub-writing rules from the mandatory-reads block (banned tokens, no personal data, per-artifact skeletons) to every title, body, and comment below.
 
-2. Resolve the scan target's epic **once**, before the filing loop:
+2. For each approved opportunity, create the issue. Pass exactly one `--parent` — the scan target from `$ARGUMENTS`:
 
 ```bash
-EPIC=$(devwatch --repo "$REPO" epic-parent --issue <ISSUE>)
-```
-
-`epic-parent` walks the scan target's `child-of` chain and prints the nearest ancestor carrying the `epic` label, or an empty string when the scan target has no epic. The epic is a property of the scan target, not of the candidate site — resolve it once and reuse `$EPIC` for every issue this run files.
-
-For each approved opportunity, create the issue. The `--parent` flags depend on whether the scan target has an epic — when `$EPIC` is non-empty, pass it as a second `--parent`:
-
-```bash
-# Scan target has an epic ($EPIC is non-empty) — two --parent flags:
-devwatch --repo "$REPO" create-issue \
-  --type feature \
-  --title "propagation: <one-line summary>" \
-  --body "<markdown body>" \
-  --area <area> \
-  --priority <P2-medium|P3-low> \
-  --parent <ISSUE> \
-  --parent "$EPIC" \
-  --run-id <RUN_ID> \
-  --no-claim-run
-
-# Scan target has no epic ($EPIC is empty) — one --parent flag:
 devwatch --repo "$REPO" create-issue \
   --type feature \
   --title "propagation: <one-line summary>" \
@@ -170,20 +149,20 @@ devwatch --repo "$REPO" create-issue \
 against one `--run-id`; without the flag each `create-issue` would
 overwrite the run's `github_issue`/`summary` and the run row would end
 up pointing at the last child instead of the scan target. The run's
-terminal status/summary is owned by the step-10 `agent-update` below —
+terminal status/summary is owned by the step-9 `agent-update` below —
 written once, not re-stamped per child.
 
 **Title format:** every propagation issue title is `propagation: <one-line summary>` — the `propagation:` prefix exactly once, then the candidate's one-line summary. No other prefix, no descriptive-only title.
 
-**Parentage — the scan target, plus its epic when it has one.** Every propagation issue carries `--parent <ISSUE>` — the scan target passed in `$ARGUMENTS` — and that link is **never** omitted. When `epic-parent` resolved a non-empty `$EPIC`, the issue **also** carries `--parent "$EPIC"` so it groups beside the epic's other children in the issue tree instead of sitting one hop below them. When `$EPIC` is empty, the scan-target link stands alone. This is the authoritative parentage rule from the `propagation-scan` rule doc loaded in the mandatory reads — do not restate or reinterpret it, follow it.
+**Parentage — pass only the scan target; `create-issue` derives the epic edge.** Every propagation issue carries `--parent <ISSUE>` — the scan target — and that is the **only** `--parent` you pass. When the scan target is itself a child of an epic, `create-issue` walks the scan target's `child-of` chain in code and writes the `child-of: <epic>` edge for you, so the issue groups beside the epic's other children instead of sitting one hop below them (#2095). You do **not** resolve the epic, and you do **not** pass it as a second `--parent` — the epic edge is a deterministic property of issue creation, not something the skill assembles per run.
 
 Do **not**:
 
-- pass any `--parent` other than the scan target and its resolved epic — no non-epic intermediate ancestor, no second epic deeper in the chain,
+- pass any `--parent` other than the scan target — not the resolved epic (`create-issue` adds it), not a non-epic intermediate ancestor, not a second epic deeper in the chain,
 - pass the workflow root (or any workflow the scan target is a step in) as a `--parent` — the workflow is execution metadata, not issue-tree parentage,
-- omit `--parent <ISSUE>` — the scan-target link is always present, even when the `$EPIC` link is added alongside it.
+- omit `--parent <ISSUE>` — the scan-target link is always present.
 
-The scan target records *why* the issue exists; its epic records *where the work groups*. Those are the only two `child-of` links a propagation issue may carry. The forbidden move is walking the `child-of` chain *past* the epic — onto a non-epic ancestor, a deeper epic, or workflow structure — and helpfully linking it too.
+The scan target records *why* the issue exists; its epic records *where the work groups*. Those are the only two `child-of` links a propagation issue may carry — and `create-issue` is the single thing that assembles them.
 
 Issue body template:
 
@@ -212,27 +191,9 @@ The originating PR is scoped to #<ISSUE>. This site is a candidate for the same 
 
 After each `create-issue`, note the returned issue number — you need them for the summary.
 
-## 9. Verify the filed issues
+The `child-of` set is **not** something the skill assembles or self-verifies any more. `create-issue` writes the scan-target edge and — when the scan target has an epic — the epic edge, both in code (#2095). There is no per-run conditional for an agent to skip and no blind re-read for it to rubber-stamp: a missing or wrong `child-of` set is now a `create-issue` bug, caught by that command's own tests, not a propagation-scan responsibility.
 
-Before posting the summary, read back **every** issue created in step 8 and assert it matches the contract. This is the structural backstop — prose guidance has demonstrably drifted, so the agent verifies its own output rather than declaring success on trust.
-
-For each filed issue number `<N>`:
-
-```bash
-gh issue view <N> --repo "$REPO" --json number,labels,body
-```
-
-Assert both of the following:
-
-1. **The `child-of` set is exactly the scan target, plus its epic if it has one.** Parse the `Links:` section of the body and collect every `child-of: #<M>` line:
-   - `<ISSUE>` (the scan target) **must** be present. Zero `child-of` links is the missing-link defect.
-   - `$EPIC` (the epic resolved in step 8) **must** be present if and only if `epic-parent` returned a non-empty value. When the scan target has no epic, the scan-target link is the only link.
-   - **No other** `child-of` link may appear — a non-epic intermediate ancestor, a second epic deeper in the chain, or a workflow root is the excess-link defect.
-2. **Not labelled `epic`.** The `epic` label must not appear on the issue. A propagation child is a flat child, never an umbrella.
-
-If **any** filed issue fails either assertion, do not post the summary and do not record completion as `completed`. Emit `status: failed`, naming every offending issue number and which assertion it broke, and stop. A run that filed issues violating the contract is a failed run, not a completed one — the human needs the issue numbers to remediate.
-
-## 10. Summary comment
+## 9. Summary comment
 
 Post a single summary comment on the parent `<ISSUE>`:
 
@@ -249,7 +210,7 @@ Cap: <CAP>. Overflow: <K>.
 See the propagation-scan rule."
 ```
 
-## 11. Record completion
+## 10. Record completion
 
 Update the agent-run trace (use `--run-id` if available, otherwise `--issue`):
 
@@ -276,5 +237,5 @@ devwatch --repo "$REPO" agent-update \
 - **Capped.** Top `CAP` opportunities (default 5). Overflow counted, not filed.
 - **Human-gated.** The user approves the opportunity list before any issue is created.
 - **No cross-skill writes.** Does not write rules, docs, or code. `/issue-to-rule` handles rules; `/add-documentation` handles docs.
-- **Never creates an epic.** The skill files **flat** `child-of` children of the scan target. It never passes `--epic`, never files an umbrella / epic issue, and never re-roots the filed children under a new parent. If the candidate count exceeds the cap, the overflow is **counted in the summary** (step 10) — it is never absorbed by inventing an epic to hold the extra issues.
+- **Never creates an epic.** The skill files **flat** `child-of` children of the scan target. It never passes `--epic`, never files an umbrella / epic issue, and never re-roots the filed children under a new parent. If the candidate count exceeds the cap, the overflow is **counted in the summary** (step 9) — it is never absorbed by inventing an epic to hold the extra issues.
 - **Never touches a pre-existing issue.** The skill only **creates new** flat children of the scan target. It never modifies, re-links, re-titles, re-parents, re-labels, or closes an issue that already exists — including issues filed by an *earlier* propagation run. Each run owns only the issues it creates in step 8.

@@ -93,14 +93,15 @@ If the target repo has `.claude/rules/dev-ports.md`, treat it as authoritative �
     launch() {
         local name="$1"; shift
         local log="$LOG_DIR/${name}.log"
-        nohup bash -c "cd '$REPO_ROOT' && $*" > "$log" 2>&1 &
+        nohup env -u UV_PROJECT_ENVIRONMENT -u VIRTUAL_ENV \
+            bash -c "cd '$REPO_ROOT' && $*" > "$log" 2>&1 &
         echo $! >> "$PID_FILE"
         echo "  $name pid $! → $log"
     }
     launch backend "uv run uvicorn server.main:app --host 127.0.0.1 --port $BACKEND_PORT"
     launch frontend "cd dashboard && npm run dev -- --port $FRONTEND_PORT"
     ```
-    Always invoke commands from `$REPO_ROOT` so Python and Node resolve their packages correctly (don't `cd server` before `uvicorn` — the `server` module lives at the repo root). On close we kill each recorded PID and its child tree via `pkill -P` — macOS doesn't ship `setsid`, so we rely on process-tree walking instead of process groups.
+    Always invoke commands from `$REPO_ROOT` so Python and Node resolve their packages correctly (don't `cd server` before `uvicorn` — the `server` module lives at the repo root). `env -u UV_PROJECT_ENVIRONMENT -u VIRTUAL_ENV` strips ambient virtualenv redirection from the parent shell so `uv` resolves the repo's own `.venv` instead of an unrelated path (#210). On close we kill each recorded PID and its child tree via `pkill -P` — macOS doesn't ship `setsid`, so we rely on process-tree walking instead of process groups.
 
 4. **Verify the processes are alive** after a short delay (at least 2 seconds) so we don't report `running` for a stack that crashed on boot:
     ```bash
